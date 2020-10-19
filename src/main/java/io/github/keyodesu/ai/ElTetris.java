@@ -4,6 +4,10 @@ import io.github.keyodesu.Config;
 import io.github.keyodesu.Container;
 import io.github.keyodesu.block.Block;
 
+import java.util.stream.IntStream;
+
+import static io.github.keyodesu.Container.CellStat.*;
+
 /**
  * @author Yo Ka
  */
@@ -45,12 +49,42 @@ public class ElTetris implements AI {
         return 1;
     }
 
+    private static int rowTransitions1(Container.CellStat[][] statMatrix) {
+        int count = 0;
+
+        for (int x = 0; x < statMatrix.length; x++) {
+            for (int y = 0; y < statMatrix[x].length; y++) {
+                if ((statMatrix[x][y] == EMPTY)
+                        && ((x-1 >= 0 && statMatrix[x-1][y] != EMPTY) || (x+1 < statMatrix.length && statMatrix[x+1][y] != EMPTY))) {
+                    count++;
+                }
+            }
+        }
+
+        return count;
+    }
+
     /**
      * 4. Column Transitions: The total number of column transitions.
      * A column transition occurs when an empty cell is adjacent to a filled cell on the same column and vice versa.
      */
     private int columnTransitions(Block block) {
         return 1;
+    }
+
+    private static int columnTransitions1(Container.CellStat[][] statMatrix) {
+        int count = 0;
+
+        for (var column : statMatrix) {
+            for (int y = 0; y < column.length; y++) {
+                if ((column[y] == EMPTY)
+                        && ((y - 1 >= 0 && column[y - 1] != EMPTY) || (y + 1 < column.length && column[y + 1] != EMPTY))) {
+                    count++;
+                }
+            }
+        }
+
+        return count;
     }
 
     /**
@@ -60,11 +94,50 @@ public class ElTetris implements AI {
         return 1;
     }
 
+    private static int numberOfHoles1(Container.CellStat[][] statMatrix) {
+        int num = 0;
+
+        for (var column : statMatrix) {
+            boolean filledCellAbove = false;
+            for (var stat : column) {
+                if (stat == SOLIDIFY) {
+                    filledCellAbove = true;
+                } else if (filledCellAbove) {
+                    num++;
+                }
+            }
+        }
+
+        return num;
+    }
+
+
     /**
      * 6. Well Sums: A well is a succession of empty cells such that their left cells and right cells are both filled.
      */
     private int wellSums(Block block) {
         return 1;
+    }
+
+    private static int wellSums1(Container.CellStat[][] statMatrix) {
+        int sums = 0;
+        int num = 0;
+
+        for (int x = 0; x < statMatrix.length; x++) {
+            for (int y = 0; y < statMatrix[x].length; y++) {
+                if ((statMatrix[x][y] == EMPTY)
+                        && (x-1 < 0 || statMatrix[x-1][y] != EMPTY)
+                        && (x+1 >= statMatrix.length || statMatrix[x+1][y] != EMPTY)) {
+                    num++;
+                } else if (num > 0) {
+                    sums += IntStream.rangeClosed(0, num).sum();
+                    num = 0;
+                }
+            }
+        }
+
+        sums += IntStream.rangeClosed(0, num).sum();
+        return sums;
     }
 
     private double evaluateScore(Block block) {

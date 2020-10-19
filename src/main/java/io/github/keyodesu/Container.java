@@ -1,7 +1,5 @@
 package io.github.keyodesu;
 
-import io.github.keyodesu.ai.AI;
-import io.github.keyodesu.ai.ElTetris;
 import io.github.keyodesu.block.Block;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -44,7 +42,7 @@ public class Container extends Canvas {
     private double gapInnerBlock;
 
     // 画布状态表示
-    private static final CellStat[][] stats = new CellStat[COL][ROW];
+    private static final CellStat[][] statMatrix = new CellStat[COL][ROW];
 
     public Container(double width, double height) {
         super(width, height);
@@ -67,7 +65,7 @@ public class Container extends Canvas {
 
         for(int x = 0; x < COL; x++)
             for(int y = 0; y < ROW; y++)
-                stats[x][y] = CellStat.EMPTY;
+                statMatrix[x][y] = CellStat.EMPTY;
     }
 
     void draw() {
@@ -77,10 +75,10 @@ public class Container extends Canvas {
 
         for(int x = 0; x < COL; x++) {
             for (int y = 0; y < ROW; y++) {
-                if (stats[x][y] == CellStat.EMPTY) {
+                if (statMatrix[x][y] == CellStat.EMPTY) {
                     gc.setFill(Color.GRAY);
                     gc.setStroke(Color.GRAY);
-                } else if (stats[x][y] == CellStat.MOVING || stats[x][y] == CellStat.SOLIDIFY) {
+                } else if (statMatrix[x][y] == CellStat.MOVING || statMatrix[x][y] == CellStat.SOLIDIFY) {
                     gc.setFill(Color.BLACK);
                     gc.setStroke(Color.BLACK);
                 }
@@ -117,7 +115,7 @@ public class Container extends Canvas {
                         return true;
 
                     // 小方块从顶部刚出来时是可以显示不全的，所以（j<0）不算越界
-                    if(j >= 0 && stats[i][j] == CellStat.SOLIDIFY) {
+                    if(j >= 0 && statMatrix[i][j] == CellStat.SOLIDIFY) {
                         return true;
                     }
                 }
@@ -139,7 +137,7 @@ public class Container extends Canvas {
         for (int x = 0; x < Block.SIDE_LEN; x++) {
             for (int y = 0; y < Block.SIDE_LEN; y++) {
                 if (data[x][y] && top + y >= 0) {
-                    stats[left + x][top + y] = CellStat.MOVING;
+                    statMatrix[left + x][top + y] = CellStat.MOVING;
                 }
             }
         }
@@ -148,8 +146,8 @@ public class Container extends Canvas {
     public void cleanAllBlocksMovingStat() {
         for(int x = 0; x < COL; x++) {
             for(int y = 0; y < ROW; y++) {
-                if(stats[x][y] == CellStat.MOVING)
-                    stats[x][y] = CellStat.EMPTY;
+                if(statMatrix[x][y] == CellStat.MOVING)
+                    statMatrix[x][y] = CellStat.EMPTY;
             }
         }
     }
@@ -157,8 +155,8 @@ public class Container extends Canvas {
     public void solidifyAllBlocksMovingStat() {
         for(int x = 0; x < COL; x++) {
             for(int y = 0; y < ROW; y++) {
-                if(stats[x][y] == CellStat.MOVING)
-                    stats[x][y] = CellStat.SOLIDIFY;
+                if(statMatrix[x][y] == CellStat.MOVING)
+                    statMatrix[x][y] = CellStat.SOLIDIFY;
             }
         }
     }
@@ -182,10 +180,10 @@ public class Container extends Canvas {
 
         for (int y = ROW - 1; y >= 0; y--) {
             for (int x = 0; x < COL; x++) {
-                if (stats[x][y] == CellStat.EMPTY) {
+                if (statMatrix[x][y] == CellStat.EMPTY) {
                     // 发现一未满行，将此行复制的tmp数组的对应位置
                     for (int i = 0, t = 0; i < COL; i++, t++) {
-                        tmp[i][j] = stats[t][y];
+                        tmp[i][j] = statMatrix[t][y];
                     }
                     j--;
                     notFullLineCount++;
@@ -196,7 +194,7 @@ public class Container extends Canvas {
 
         for (int x = 0; x < COL; x++) {
             for (int y = 0; y < ROW; y++) {
-                stats[x][y] = tmp[x][y];
+                statMatrix[x][y] = tmp[x][y];
             }
         }
 
@@ -222,72 +220,72 @@ public class Container extends Canvas {
     public void overPattern() {
         for (int y = ROW - 1; y >= 0; y--) {
             for (int x = 0; x < COL; x++) {
-                stats[x][y] = CellStat.EMPTY;
+                statMatrix[x][y] = CellStat.EMPTY;
             }
         }
 
         // "O"
-        stats[1][3] = CellStat.SOLIDIFY;
-        stats[1][4] = CellStat.SOLIDIFY;
-        stats[1][5] = CellStat.SOLIDIFY;
-        stats[1][6] = CellStat.SOLIDIFY;
-        stats[1][7] = CellStat.SOLIDIFY;
+        statMatrix[1][3] = CellStat.SOLIDIFY;
+        statMatrix[1][4] = CellStat.SOLIDIFY;
+        statMatrix[1][5] = CellStat.SOLIDIFY;
+        statMatrix[1][6] = CellStat.SOLIDIFY;
+        statMatrix[1][7] = CellStat.SOLIDIFY;
 
-        stats[2][3] = CellStat.SOLIDIFY;
-        stats[2][7] = CellStat.SOLIDIFY;
+        statMatrix[2][3] = CellStat.SOLIDIFY;
+        statMatrix[2][7] = CellStat.SOLIDIFY;
 
-        stats[3][3] = CellStat.SOLIDIFY;
-        stats[3][4] = CellStat.SOLIDIFY;
-        stats[3][5] = CellStat.SOLIDIFY;
-        stats[3][6] = CellStat.SOLIDIFY;
-        stats[3][7] = CellStat.SOLIDIFY;
+        statMatrix[3][3] = CellStat.SOLIDIFY;
+        statMatrix[3][4] = CellStat.SOLIDIFY;
+        statMatrix[3][5] = CellStat.SOLIDIFY;
+        statMatrix[3][6] = CellStat.SOLIDIFY;
+        statMatrix[3][7] = CellStat.SOLIDIFY;
 
         // "V"
-        stats[5][3] = CellStat.SOLIDIFY;
-        stats[5][4] = CellStat.SOLIDIFY;
-        stats[5][5] = CellStat.SOLIDIFY;
-        stats[5][6] = CellStat.SOLIDIFY;
+        statMatrix[5][3] = CellStat.SOLIDIFY;
+        statMatrix[5][4] = CellStat.SOLIDIFY;
+        statMatrix[5][5] = CellStat.SOLIDIFY;
+        statMatrix[5][6] = CellStat.SOLIDIFY;
 
-        stats[6][7] = CellStat.SOLIDIFY;
+        statMatrix[6][7] = CellStat.SOLIDIFY;
 
-        stats[7][3] = CellStat.SOLIDIFY;
-        stats[7][4] = CellStat.SOLIDIFY;
-        stats[7][5] = CellStat.SOLIDIFY;
-        stats[7][6] = CellStat.SOLIDIFY;
+        statMatrix[7][3] = CellStat.SOLIDIFY;
+        statMatrix[7][4] = CellStat.SOLIDIFY;
+        statMatrix[7][5] = CellStat.SOLIDIFY;
+        statMatrix[7][6] = CellStat.SOLIDIFY;
 
         // "E"
-        stats[1][9] = CellStat.SOLIDIFY;
-        stats[1][10] = CellStat.SOLIDIFY;
-        stats[1][11] = CellStat.SOLIDIFY;
-        stats[1][12] = CellStat.SOLIDIFY;
-        stats[1][13] = CellStat.SOLIDIFY;
+        statMatrix[1][9] = CellStat.SOLIDIFY;
+        statMatrix[1][10] = CellStat.SOLIDIFY;
+        statMatrix[1][11] = CellStat.SOLIDIFY;
+        statMatrix[1][12] = CellStat.SOLIDIFY;
+        statMatrix[1][13] = CellStat.SOLIDIFY;
 
-        stats[2][9] = CellStat.SOLIDIFY;
-        stats[3][9] = CellStat.SOLIDIFY;
+        statMatrix[2][9] = CellStat.SOLIDIFY;
+        statMatrix[3][9] = CellStat.SOLIDIFY;
 
-        stats[2][11] = CellStat.SOLIDIFY;
-        stats[3][11] = CellStat.SOLIDIFY;
+        statMatrix[2][11] = CellStat.SOLIDIFY;
+        statMatrix[3][11] = CellStat.SOLIDIFY;
 
-        stats[2][13] = CellStat.SOLIDIFY;
-        stats[3][13] = CellStat.SOLIDIFY;
+        statMatrix[2][13] = CellStat.SOLIDIFY;
+        statMatrix[3][13] = CellStat.SOLIDIFY;
 
         // "R"
-        stats[5][9] = CellStat.SOLIDIFY;
-        stats[5][10] = CellStat.SOLIDIFY;
-        stats[5][11] = CellStat.SOLIDIFY;
-        stats[5][12] = CellStat.SOLIDIFY;
-        stats[5][13] = CellStat.SOLIDIFY;
+        statMatrix[5][9] = CellStat.SOLIDIFY;
+        statMatrix[5][10] = CellStat.SOLIDIFY;
+        statMatrix[5][11] = CellStat.SOLIDIFY;
+        statMatrix[5][12] = CellStat.SOLIDIFY;
+        statMatrix[5][13] = CellStat.SOLIDIFY;
 
-        stats[6][9] = CellStat.SOLIDIFY;
-        stats[7][9] = CellStat.SOLIDIFY;
+        statMatrix[6][9] = CellStat.SOLIDIFY;
+        statMatrix[7][9] = CellStat.SOLIDIFY;
 
-        stats[7][10] = CellStat.SOLIDIFY;
-        stats[7][11] = CellStat.SOLIDIFY;
+        statMatrix[7][10] = CellStat.SOLIDIFY;
+        statMatrix[7][11] = CellStat.SOLIDIFY;
 
-        stats[6][11] = CellStat.SOLIDIFY;
+        statMatrix[6][11] = CellStat.SOLIDIFY;
 
-        stats[6][12] = CellStat.SOLIDIFY;
-        stats[7][13] = CellStat.SOLIDIFY;
+        statMatrix[6][12] = CellStat.SOLIDIFY;
+        statMatrix[7][13] = CellStat.SOLIDIFY;
     }
     
 }

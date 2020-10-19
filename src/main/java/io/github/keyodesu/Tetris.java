@@ -29,7 +29,7 @@ import static io.github.keyodesu.Config.*;
 /**
  * @author Yo Ka
  */
-public class Main extends Application {
+public class Tetris extends Application {
 
     private void reset(Canvas canvas, Color color) {
         GraphicsContext gc = canvas.getGraphicsContext2D();
