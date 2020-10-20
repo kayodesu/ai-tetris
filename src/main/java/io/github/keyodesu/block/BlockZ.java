@@ -16,6 +16,11 @@ public class BlockZ extends Block {
     }
 
     @Override
+    public int getHeight() {
+        return stat == 0 ? 3 : 2;
+    }
+
+    @Override
     public void switchToPrevStat() {
         stat = stat == 0 ? 1 : 0;
     }

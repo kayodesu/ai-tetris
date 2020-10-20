@@ -18,6 +18,11 @@ public class BlockL extends Block {
     }
 
     @Override
+    public int getHeight() {
+        return (stat == 0 || stat == 2) ? 3 : 2;
+    }
+
+    @Override
     public void switchToPrevStat() {
         if (--stat < 0)
             stat = 3;

@@ -23,19 +23,16 @@ import javafx.stage.Screen;
 import javafx.stage.Stage;
 
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.function.BooleanSupplier;
+import java.util.function.Function;
 
 import static io.github.keyodesu.Config.*;
+import static io.github.keyodesu.Tetris.Action.*;
 
 /**
  * @author Yo Ka
  */
 public class Tetris extends Application {
-
-    private void reset(Canvas canvas, Color color) {
-        GraphicsContext gc = canvas.getGraphicsContext2D();
-        gc.setFill(color);
-        gc.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
-    }
 
     private double windowWidth;
     private double windowHeight;
@@ -87,6 +84,7 @@ public class Tetris extends Application {
                 if (currLevel >= 1 && currLevel <= 10) {
                     Thread.sleep(downRate[currLevel]);
                 } else {
+                    throw new NeverReachHereError();
 //                        Log.e(TAG, "错误，不应该走到这里。currLeven = " + currLevel);
                 }
             } catch (InterruptedException e) {
@@ -101,25 +99,20 @@ public class Tetris extends Application {
      */
     Thread workThread = new Thread(new Runnable() {
         private static final int BEGIN_X = 3;  // 默认小方块从第3列出来
-        private static final int BEGIN_Y = -1;
+        private static final int BEGIN_Y = -Block.SIDE_LEN;
 
-        // 当前block的位置
-        private int x = BEGIN_X;
-        private int y = BEGIN_Y;
-
-        private Block currBlock = Block.getRandomBlock();
         private Block nextBlock = Block.getRandomBlock();
 
         /**
          * 触底后的处理
          */
         private void touchBottom() {
-            gameContainer.solidifyAllBlocksMovingStat();
+            gameContainer.merger();
 
             int removeLineCount = gameContainer.removeFullLines();
             if(removeLineCount > 0) {
 //                Log.i(TAG, "消除了" + removeLineCount + "行");
-                gameContainer.draw();
+//                gameContainer.draw();
 
                 if (removeLineCount == 1)
                     currScore += 10;   //  一次消除一层： 获得10积分
@@ -165,63 +158,33 @@ public class Tetris extends Application {
 //                handler.sendMessage(msg);
             }
 
-            currBlock = nextBlock;
+//            currBlock = nextBlock;
+            gameContainer.setDanglingBlock(BEGIN_X, BEGIN_Y, nextBlock);
             nextBlock = Block.getRandomBlock();
+
 //            nextBlockPanel.setBlockStat(0, 0, 4, 4, nextBlock.getData());
 //            nextBlockPanel.drawPanel();
 
-            if(y == 0) {  // 往第0行放时已经触底了，说明游戏结束了。
+            actionQueue.clear();
+            if (gameContainer.isFull())
                 gameOver();
-            } else {
-                // 还原一下状态
-                x = BEGIN_X;
-                y = BEGIN_Y;
-                // 清空一下消息队列，不要让对上次小方块的指令影响到新的小方块
-                actionQueue.clear();
-            }
-        }
-
-        /**
-         * 进行一次移动或变形
-         * @param action
-         * @return 返回当前小方块在一次移动后是否已经固定在底部了。
-         *          true表示已经固定，false表示没有固定
-         */
-        private boolean move(Action action) {
-            if(!gameContainer.testConflict(x, y - 3, currBlock)) {  // 没有碰到任何边界
-                gameContainer.cleanAllBlocksMovingStat();  //清理block运动中中上一次的残留
-                gameContainer.pasteBlock(x, y - 3, currBlock);
-                gameContainer.draw();
-            } else {
-                // 有冲突，还原一下状态
-                if(action == Action.LEFT) {
-                    x++;
-                } else if(action == Action.RIGHT) {
-                    x--;
-                } else if(action == Action.DOWN || action == Action.FAST_DOWN) {
-                    // 往下运动有冲突，说明触底了
-                    touchBottom();
-                    return true;
-                } else if(action == Action.TRANSFORM) {
-                    currBlock.switchToPrevStat();
-                } else {
-//                    Log.e(TAG, "error, 不应该走到这里，检测碰撞出错！");
-                }
-            }
-
-            return false;
         }
 
         @Override
         public void run() {
+            gameContainer.setDanglingBlock(BEGIN_X, BEGIN_Y, Block.getRandomBlock());
+
             while (!isGameOver) {
                 try {
+                    System.out.println("aiPlaying: " + aiPlaying); //////////////////////////////////////
                     if (aiPlaying) {
-                        x = ai.calBestColAndStat(currBlock);
-                        while (!move(Action.DOWN)) {
-                            y++;
+                        ai.calBestColAndStat();
+                        while (gameContainer.moveDown()) {
                             Thread.sleep(10);
                         }
+                        System.out.println("1111111111111111111111"); //////////////////////////////////////
+                        touchBottom();
+                        System.out.println("22222222222222222222222"); //////////////////////////////////////
                     } else {
 //                    nextBlockPanel.setBlockStat(0, 0, 4, 4, nextBlock.getData());  todo
 //                    nextBlockPanel.drawPanel();
@@ -232,10 +195,9 @@ public class Tetris extends Application {
                             if (isGameOver) {
                                 return;
                             }
-                            /*
-                             * 循环取消息直到取出消息为止 注意，取消息不能用阻塞函数actionQueue.take()
-                             * 因为往队列里面放消息也需要锁，如果取不出消息时阻塞将导致无法添加消息
-                             */
+
+                            // 循环取消息直到取出消息为止 注意，取消息不能用阻塞函数actionQueue.take()
+                            // 因为往队列里面放消息也需要锁，如果取不出消息时阻塞将导致无法添加消息
                             action = actionQueue.poll();
 
                             // 下面的小睡是必须的，防止此线程过快的取消息队列。
@@ -245,34 +207,26 @@ public class Tetris extends Application {
                         if (aiPlaying)
                             continue;
 
-                        switch (action) {
-                        case LEFT:
-                            x--;
-                            move(action);
-                            break;
-                        case RIGHT:
-                            x++;
-                            move(action);
-                            break;
-                        case TRANSFORM:
-                            currBlock.switchToNextStat();
-                            move(action);
-                            break;
-                        case DOWN:
-                            y++;
-                            move(action);
-                            break;
-                        case FAST_DOWN: // 按了向下键之后，快速的下移 FAST_DOWN_CELL_COUNT 格
+                        if (action == LEFT) {
+                            gameContainer.moveLeft();
+                        } else if (action == RIGHT) {
+                            gameContainer.moveRight();
+                        } else if (action == TRANSFORM) {
+                            gameContainer.transform();
+                        } else if (action == DOWN) {
+                            if (!gameContainer.moveDown()) {
+                                touchBottom();
+                            }
+                        } else if (action == FAST_DOWN) { // 按了向下键之后，快速的下移 FAST_DOWN_CELL_COUNT 格
                             for (int i = 0; i < FAST_DOWN_CELL_COUNT; i++) {
-                                y++;
-                                if (move(action)) {
+                                if (!gameContainer.moveDown()) {
+                                    touchBottom();
                                     break; // 当前小方块已经固定在底部了
                                 }
                                 Thread.sleep(10);
                             }
-                            break;
-                        default:
-                            break;
+                        } else {
+                            throw new NeverReachHereError();
                         }
                     }
                 } catch (InterruptedException e) {
@@ -296,15 +250,15 @@ public class Tetris extends Application {
 
         gameHeight = windowHeight * (1 - 2*GAP_AROUND_PROPORTION);
         gameWidth = gameHeight * (COL / (double)ROW);
+
+        gameContainer = new Container(gameWidth, gameHeight, COL, ROW);
+
+        ai = new ElTetris(gameContainer);
     }
 
     @Override
     public void start(Stage primaryStage) {
         primaryStage.setTitle(TITLE);
-
-        gameContainer = new Container(gameWidth, gameHeight);
-
-        ai = new ElTetris(gameContainer);
 
         VBox infoPanel = new VBox();
         infoPanel.getChildren().add(new Label("Score"));
@@ -342,7 +296,7 @@ public class Tetris extends Application {
         primaryStage.addEventHandler(KeyEvent.KEY_PRESSED, keyEvent -> {
             try {
                 if (keyEvent.getCode() == KeyCode.LEFT) {
-                    actionQueue.put(Action.LEFT);
+                    actionQueue.put(LEFT);
                 } else if (keyEvent.getCode() == KeyCode.RIGHT) {
                     actionQueue.put(Action.RIGHT);
                 } else if (keyEvent.getCode() == KeyCode.UP) {

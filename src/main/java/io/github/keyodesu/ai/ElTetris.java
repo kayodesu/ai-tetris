@@ -7,6 +7,7 @@ import io.github.keyodesu.block.Block;
 import java.util.stream.IntStream;
 
 import static io.github.keyodesu.Container.CellStat.*;
+import static io.github.keyodesu.Container.ConflictType.NONE_CONFLICT;
 
 /**
  * @author Yo Ka
@@ -29,27 +30,45 @@ public class ElTetris implements AI {
     /**
      * 1. Landing Height: The height where the piece is put (= the height of the column + (the height of the piece / 2))
      */
-    private int landingHeight(Block block) {
-        boolean[][]data = block.getData();
-        return 1;
+    private static int landingHeight(Container.CellStat[][] statMatrix, int blockHeight) {
+        int row = statMatrix[0].length;
+        for (int y = 0; y < row; y++) {
+            for (int x = 0; x < statMatrix.length; x++) {
+                if (statMatrix[x][y] != EMPTY)
+                    return row - y + blockHeight/2;
+            }
+        }
+
+        return blockHeight/2;
     }
 
     /**
      * 2. Rows eliminated: The number of rows eliminated.
      */
-    private int rowsEliminated(Block block) {
-        return 1;
+    private static int rowsEliminated(Container.CellStat[][] statMatrix) {
+        int num = 0;
+
+        int col = statMatrix.length;
+        int row = statMatrix[0].length;
+        for (int y = 0; y < row; y++) {
+            int x;
+            for (x = 0; x < col; x++) {
+                if (statMatrix[x][y] == EMPTY)
+                    break;
+            }
+            if (x == col) { // find a full line
+                num++;
+            }
+        }
+
+        return num;
     }
 
     /**
      * 3. Row Transitions: The total number of row transitions.
      * A row transition occurs when an empty cell is adjacent to a filled cell on the same row and vice versa.
      */
-    private int rowTransitions(Block block) {
-        return 1;
-    }
-
-    private static int rowTransitions1(Container.CellStat[][] statMatrix) {
+    private static int rowTransitions(Container.CellStat[][] statMatrix) {
         int count = 0;
 
         for (int x = 0; x < statMatrix.length; x++) {
@@ -68,11 +87,7 @@ public class ElTetris implements AI {
      * 4. Column Transitions: The total number of column transitions.
      * A column transition occurs when an empty cell is adjacent to a filled cell on the same column and vice versa.
      */
-    private int columnTransitions(Block block) {
-        return 1;
-    }
-
-    private static int columnTransitions1(Container.CellStat[][] statMatrix) {
+    private static int columnTransitions(Container.CellStat[][] statMatrix) {
         int count = 0;
 
         for (var column : statMatrix) {
@@ -90,11 +105,7 @@ public class ElTetris implements AI {
     /**
      * 5. Number of Holes: A hole is an empty cell that has at least one filled cell above it in the same column.
      */
-    private int numberOfHoles(Block block) {
-        return 1;
-    }
-
-    private static int numberOfHoles1(Container.CellStat[][] statMatrix) {
+    private static int numberOfHoles(Container.CellStat[][] statMatrix) {
         int num = 0;
 
         for (var column : statMatrix) {
@@ -115,11 +126,7 @@ public class ElTetris implements AI {
     /**
      * 6. Well Sums: A well is a succession of empty cells such that their left cells and right cells are both filled.
      */
-    private int wellSums(Block block) {
-        return 1;
-    }
-
-    private static int wellSums1(Container.CellStat[][] statMatrix) {
+    private static int wellSums(Container.CellStat[][] statMatrix) {
         int sums = 0;
         int num = 0;
 
@@ -140,23 +147,50 @@ public class ElTetris implements AI {
         return sums;
     }
 
-    private double evaluateScore(Block block) {
-        return landingHeight(block)*LANDING_HEIGHT_WEIGHT
-                + rowsEliminated(block)*ROWS_ELIMINATED_WEIGHT
-                + rowTransitions(block)*ROW_TRANSITIONS_WEIGHT
-                + columnTransitions(block)*COLUMN_TRANSITIONS_WEIGHT
-                + numberOfHoles(block)*NUMBER_OF_HOLES_WEIGHT
-                + wellSums(block)*WELL_SUMS_WEIGHT;
+    private static double evaluateScore(Container container) {
+        Container.CellStat[][] statMatrix = container.getStatMatrix();
+        return landingHeight(statMatrix, container.getDanglingBlock().getHeight())*LANDING_HEIGHT_WEIGHT
+                + rowsEliminated(statMatrix)*ROWS_ELIMINATED_WEIGHT
+                + rowTransitions(statMatrix)*ROW_TRANSITIONS_WEIGHT
+                + columnTransitions(statMatrix)*COLUMN_TRANSITIONS_WEIGHT
+                + numberOfHoles(statMatrix)*NUMBER_OF_HOLES_WEIGHT
+                + wellSums(statMatrix)*WELL_SUMS_WEIGHT;
     }
 
-    public int calBestColAndStat(Block block) {
+    public void calBestColAndStat() {
+        System.out.println("[in calBestColAndStat]"); //////////////////////////////////////
+        Block block = container.getDanglingBlock();
+        assert block != null;
+
         double maxScore = Double.NEGATIVE_INFINITY;
         int col = Integer.MIN_VALUE;
         int blockStat = -1;
 
         for (int i = block.getStatsCount(); i > 0; i--) {
+            System.out.println("-------------------------------- " + i); //////////////////////////////////////
             for (int x = -Block.SIDE_LEN + 1; x < Config.COL; x++) {
-                double score = evaluateScore(block);
+                System.out.print(x + ", "); //////////////////////////////////////
+                Container.ConflictType type = container.setDanglingBlock(x, 0, block);
+                if (type != NONE_CONFLICT) {
+                    continue;
+                }
+
+                while (container.tryMoveDown()) {
+//                    try {
+//                        Thread.sleep(10); /////////////////////////////////////////////////////
+//                    } catch (InterruptedException e) {
+//                        e.printStackTrace();
+//                    }
+                }
+
+//                if (container.isFull()) {
+//                    continue;
+//                }
+
+                // block 已经悬停在底部了
+                container.danglingMerger();
+                double score = evaluateScore(container);
+                container.undoDanglingMerger();
 
                 if (score > maxScore) {
                     maxScore = score;
@@ -164,14 +198,16 @@ public class ElTetris implements AI {
                     blockStat = block.getStat();
                 }
             }
+            System.out.println(); //////////////////////////////////////
             block.switchToNextStat();
         }
 
         assert blockStat > 0;
         block.switchToStat(blockStat);
-        // System.out.println(col); ////////////////////////////////////////////////////////////////////////////
-        col = 7;  ///////////////////////////////////////todo//////////////////////////////////////////////////
-        return col;
+         System.out.println("col: " + col); ////////////////////////////////////////////////////////////////////////////
+//        col = 5;  ///////////////////////////////////////todo//////////////////////////////////////////////////
+        container.setDanglingBlock(col, -Block.SIDE_LEN, block);
+        System.out.println("[out calBestColAndStat]"); //////////////////////////////////////
     }
 
     public void stop() {

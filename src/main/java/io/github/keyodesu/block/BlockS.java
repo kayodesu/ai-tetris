@@ -14,7 +14,12 @@ public class BlockS extends Block {
         data[0][1][1] = data[0][1][2] = data[0][2][2] = data[0][2][3] = true;        
         data[1][0][3] = data[1][1][3] = data[1][1][2] = data[1][2][2] = true;
     }
-    
+
+    @Override
+    public int getHeight() {
+        return stat == 0 ? 3 : 2;
+    }
+
     @Override
     public void switchToPrevStat() {
         stat = stat == 0 ? 1 : 0;

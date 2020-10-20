@@ -36,6 +36,8 @@ public abstract class Block {
     public int getStat() {
         return stat;
     }
+
+    public abstract int getHeight();
     
     public abstract void switchToPrevStat(); // 转换到前一个状态
     public abstract void switchToNextStat(); // 转换到下一个状态

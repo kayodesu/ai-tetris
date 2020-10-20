@@ -10,8 +10,13 @@ public class BlockI extends Block {
         super(2);
         
         // I型的block有以下两种形态
-        data[0][1][0] = data[0][1][1] = data[0][1][2] = data[0][1][3] = true;
-        data[1][0][3] = data[1][1][3] = data[1][2][3] = data[1][3][3] = true;
+        data[0][1][0] = data[0][1][1] = data[0][1][2] = data[0][1][3] = true; // |
+        data[1][0][3] = data[1][1][3] = data[1][2][3] = data[1][3][3] = true; // ——
+    }
+
+    @Override
+    public int getHeight() {
+        return stat == 0 ? 4 : 1;
     }
 
     @Override

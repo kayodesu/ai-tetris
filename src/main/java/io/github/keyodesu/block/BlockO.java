@@ -18,6 +18,11 @@ public class BlockO extends Block {
     }
 
     @Override
+    public int getHeight() {
+        return 2;
+    }
+
+    @Override
     public void switchToPrevStat() {
     }
 

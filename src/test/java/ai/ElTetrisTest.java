@@ -19,10 +19,9 @@ import static io.github.keyodesu.Container.CellStat.*;
 public class ElTetrisTest {
 
     private static Method numberOfHoles;
-    private static Method numberOfHoles1;
-    private static Method wellSums1;
-    private static Method rowTransitions1;
-    private static Method columnTransitions1;
+    private static Method wellSums;
+    private static Method rowTransitions;
+    private static Method columnTransitions;
 
     private static Container.CellStat[][] stats0 = new Container.CellStat[COL][ROW];
     private static Container.CellStat[][] stats1 = new Container.CellStat[COL][ROW];
@@ -49,20 +48,17 @@ public class ElTetrisTest {
 
     @BeforeAll
     static void init() throws NoSuchMethodException {
-        numberOfHoles = ElTetris.class.getDeclaredMethod("numberOfHoles", Block.class);
+        numberOfHoles = ElTetris.class.getDeclaredMethod("numberOfHoles", Container.CellStat[][].class);
         numberOfHoles.setAccessible(true);
 
-        numberOfHoles1 = ElTetris.class.getDeclaredMethod("numberOfHoles1", Container.CellStat[][].class);
-        numberOfHoles1.setAccessible(true);
+        wellSums = ElTetris.class.getDeclaredMethod("wellSums", Container.CellStat[][].class);
+        wellSums.setAccessible(true);
 
-        wellSums1 = ElTetris.class.getDeclaredMethod("wellSums1", Container.CellStat[][].class);
-        wellSums1.setAccessible(true);
+        rowTransitions = ElTetris.class.getDeclaredMethod("rowTransitions", Container.CellStat[][].class);
+        rowTransitions.setAccessible(true);
 
-        rowTransitions1 = ElTetris.class.getDeclaredMethod("rowTransitions1", Container.CellStat[][].class);
-        rowTransitions1.setAccessible(true);
-
-        columnTransitions1 = ElTetris.class.getDeclaredMethod("columnTransitions1", Container.CellStat[][].class);
-        columnTransitions1.setAccessible(true);
+        columnTransitions = ElTetris.class.getDeclaredMethod("columnTransitions", Container.CellStat[][].class);
+        columnTransitions.setAccessible(true);
 
         for (int x = 0; x < COL; x++) {
             for (int y = 0; y < ROW; y++) {
@@ -85,28 +81,28 @@ public class ElTetrisTest {
 
     @Test
     void testNumberOfHoles() throws InvocationTargetException, IllegalAccessException {
-        int num = (Integer) numberOfHoles1.invoke(null, (Object) stats0);
+        int num = (Integer) numberOfHoles.invoke(null, (Object) stats0);
         printStats(stats0);
         System.out.println(num);
     }
 
     @Test
     void testWellSums() throws InvocationTargetException, IllegalAccessException {
-        int num = (Integer) wellSums1.invoke(null, (Object) stats1);
+        int num = (Integer) wellSums.invoke(null, (Object) stats1);
         printStats(stats1);
         System.out.println(num);
     }
 
     @Test
     void testRowTransitions() throws InvocationTargetException, IllegalAccessException {
-        int count = (Integer) rowTransitions1.invoke(null, (Object) stats1);
+        int count = (Integer) rowTransitions.invoke(null, (Object) stats1);
         printStats(stats1);
         System.out.println(count);
     }
 
     @Test
     void testColumnTransitions() throws InvocationTargetException, IllegalAccessException {
-        int count = (Integer) columnTransitions1.invoke(null, (Object) stats1);
+        int count = (Integer) columnTransitions.invoke(null, (Object) stats1);
         printStats(stats1);
         System.out.println(count);
     }
