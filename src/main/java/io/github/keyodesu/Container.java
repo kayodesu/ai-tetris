@@ -46,6 +46,10 @@ public class Container extends Canvas {
     private CellStat[][] statMatrix;
     private int columnsCount, rowsCount;
 
+    public int getColumnsCount() {
+        return columnsCount;
+    }
+
     public int getRowsCount() {
         return rowsCount;
     }
@@ -86,13 +90,13 @@ public class Container extends Canvas {
     private boolean full = false;
 
     private Block danglingBlock;
-    public int left, top; // danglingBlock 的坐标
+    public int blockLeft, blockTop; // danglingBlock 的坐标
 
     public ConflictType setDanglingBlock(int left, int top, Block block) {
         ConflictType type = testBoundAndConflict(left, top, block);
         if (type == ConflictType.NONE_CONFLICT) {
-            this.left = left;
-            this.top = top;
+            this.blockLeft = left;
+            this.blockTop = top;
             danglingBlock = block;
         }
         return type;
@@ -109,9 +113,9 @@ public class Container extends Canvas {
     public boolean moveLeft() {
         assert danglingBlock != null;
 
-        ConflictType type = testBoundAndConflict(left - 1, top, danglingBlock);
+        ConflictType type = testBoundAndConflict(blockLeft - 1, blockTop, danglingBlock);
         if (type == ConflictType.NONE_CONFLICT) {
-            left--;
+            blockLeft--;
             draw();
             return true;
         }
@@ -121,9 +125,9 @@ public class Container extends Canvas {
     public boolean moveRight() {
         assert danglingBlock != null;
 
-        ConflictType type = testBoundAndConflict(left + 1, top, danglingBlock);
+        ConflictType type = testBoundAndConflict(blockLeft + 1, blockTop, danglingBlock);
         if (type == ConflictType.NONE_CONFLICT) {
-            left++;
+            blockLeft++;
             draw();
             return true;
         }
@@ -134,7 +138,7 @@ public class Container extends Canvas {
         assert danglingBlock != null;
 
         danglingBlock.switchToNextStat();
-        ConflictType type = testBoundAndConflict(left, top, danglingBlock);
+        ConflictType type = testBoundAndConflict(blockLeft, blockTop, danglingBlock);
         if (type == ConflictType.NONE_CONFLICT) {
             draw();
             return true;
@@ -146,9 +150,9 @@ public class Container extends Canvas {
     public boolean moveDown() {
         assert danglingBlock != null;
 
-        ConflictType type = testBoundAndConflict(left, top + 1, danglingBlock);
+        ConflictType type = testBoundAndConflict(blockLeft, blockTop + 1, danglingBlock);
         if (type == ConflictType.NONE_CONFLICT) {
-            top++;
+            blockTop++;
             draw();
             return true;
         }
@@ -158,9 +162,9 @@ public class Container extends Canvas {
     public boolean tryMoveDown() {
         assert danglingBlock != null;
 
-        ConflictType type = testBoundAndConflict(left, top + 1, danglingBlock);
+        ConflictType type = testBoundAndConflict(blockLeft, blockTop + 1, danglingBlock);
         if (type == ConflictType.NONE_CONFLICT) {
-            top++;
+            blockTop++;
             return true;
         }
         return false;
@@ -208,31 +212,31 @@ public class Container extends Canvas {
 
     public int merger() {
         assert danglingBlock != null;
-        assert testBoundAndConflict(left, top, danglingBlock) == ConflictType.NONE_CONFLICT;
+        assert testBoundAndConflict(blockLeft, blockTop, danglingBlock) == ConflictType.NONE_CONFLICT;
 
         for(int x = 0; x < Block.SIDE_LEN; x++) {
             for(int y = 0; y < Block.SIDE_LEN; y++) {
                 if(danglingBlock.getData()[x][y]) {
                     // 上方屏幕外图形的不合并
-                    if (top + y < 0) {
+                    if (blockTop + y < 0) {
                         full = true;
                     } else {
-                        statMatrix[left + x][top + y] = CellStat.SOLIDIFY;
+                        statMatrix[blockLeft + x][blockTop + y] = CellStat.SOLIDIFY;
                     }
                 }
             }
         }
 
         int removedLinesCount = removeFullLines();
-        if (removedLinesCount > 0 && top < 0) {
-            top += removedLinesCount; // 下移 removedLinesCount 行
-            if (top > 0) {
+        if (removedLinesCount > 0 && blockTop < 0) {
+            blockTop += removedLinesCount; // 下移 removedLinesCount 行
+            if (blockTop > 0) {
                 full = false;
 
                 for(int x = 0; x < Block.SIDE_LEN; x++)
                     for(int y = 0; y < removedLinesCount; y++)
                         if(danglingBlock.getData()[x][y])
-                            statMatrix[left + x][top + y] = CellStat.SOLIDIFY;
+                            statMatrix[blockLeft + x][blockTop + y] = CellStat.SOLIDIFY;
             }
         }
 
@@ -243,13 +247,13 @@ public class Container extends Canvas {
 
     public void pasteDanglingBlock() {
         assert danglingBlock != null;
-        assert testBoundAndConflict(left, top, danglingBlock) == ConflictType.NONE_CONFLICT;
+        assert testBoundAndConflict(blockLeft, blockTop, danglingBlock) == ConflictType.NONE_CONFLICT;
 
         for(int x = 0; x < Block.SIDE_LEN; x++) {
             for(int y = 0; y < Block.SIDE_LEN; y++) {
                 // 上方屏幕外图形的不合并
-                if(top + y > 0 && danglingBlock.getData()[x][y])
-                    statMatrix[left + x][top + y] = CellStat.MOVING;
+                if(blockTop + y > 0 && danglingBlock.getData()[x][y])
+                    statMatrix[blockLeft + x][blockTop + y] = CellStat.MOVING;
             }
         }
     }
@@ -262,12 +266,6 @@ public class Container extends Canvas {
             }
         }
     }
-
-
-//    public static class BlockOutOfLeftBoundException extends Exception { }
-//    public static class BlockOutOfRightBoundException extends Exception { }
-//    public static class BlockOutOfBottomBoundException extends Exception { }
-//    public static class BlockConflictException extends Exception { }
 
     public enum ConflictType {
         NONE_CONFLICT,  // 无冲突
@@ -301,7 +299,7 @@ public class Container extends Canvas {
                         return ConflictType.OUT_OF_BOTTOM_BOUND;
 
                     // 小方块从顶部刚出来时是可以显示不全的，所以（j<0）不算越界
-                    if(j >= 0 && statMatrix[i][j] == CellStat.SOLIDIFY) {
+                    if(j >= 0 && statMatrix[i][j] != CellStat.EMPTY) {
                         return ConflictType.CONFLICT;
                     }
                 }
@@ -310,78 +308,6 @@ public class Container extends Canvas {
 
         return ConflictType.NONE_CONFLICT;
     }
-
-//    /**
-//     * 将一个block的数据贴到container中，只可以贴到 empty cell上
-//     * 上面可以越界，左，右，下不可以越界
-//     * @param left
-//     * @param top
-//     * @param block
-//     */
-//    public ConflictType pasteBlock(int left, int top, Block block) {
-//        ConflictType type = testBoundAndConflict(left, top, block);
-//        if (type == ConflictType.NONE_CONFLICT) {
-//            boolean[][] data = block.getData();
-//
-//            for (int x = 0; x < Block.SIDE_LEN; x++) {
-//                for (int y = 0; y < Block.SIDE_LEN; y++) {
-//                    if (data[x][y] && top + y >= 0) {
-//                        statMatrix[left + x][top + y] = CellStat.MOVING;
-//                    }
-//                }
-//            }
-//        }
-//        return type;
-//    }
-
-//    public ConflictType pasteBlockBottom(int column, Block block) {
-//        for (int r = -Block.SIDE_LEN; r < rowsCount; r++) {
-//            ConflictType type = pasteBlock(column, r, block);
-//            if (type == ConflictType.OUT_OF_LEFT_BOUND || type == ConflictType.OUT_OF_RIGHT_BOUND)
-//                return type;
-//            else if (type == ConflictType.NONE_CONFLICT) {
-//                cleanAllBlocksMovingStat();
-//            } else { // 底部冲突了
-//                cleanAllBlocksMovingStat();
-//                r--; // 底部冲突了，回退
-//                pasteBlock(column, r, block); // 贴到底部
-//                return ConflictType.NONE_CONFLICT;
-//            }
-//        }
-//
-//        throw new NeverReachHereError();
-//    }
-
-//    public void cleanAllBlocksMovingStat() {
-//        for(int x = 0; x < columnsCount; x++) {
-//            for(int y = 0; y < rowsCount; y++) {
-//                if(statMatrix[x][y] == CellStat.MOVING)
-//                    statMatrix[x][y] = CellStat.EMPTY;
-//            }
-//        }
-//    }
-
-//    public void solidifyAllBlocksMovingStat() {
-//        for(int x = 0; x < columnsCount; x++) {
-//            for(int y = 0; y < rowsCount; y++) {
-//                if(statMatrix[x][y] == CellStat.MOVING)
-//                    statMatrix[x][y] = CellStat.SOLIDIFY;
-//            }
-//        }
-//    }
-
-//    /**
-//     * 模拟将一个block放置在底部，从左到右依次放置
-//     * @param block
-//     * @return 是否可以继续模拟放置
-//     */
-//    public boolean simulatePut(Block block) {
-//        for (int x = -Block.SIDE_LEN + 1; true; x++) {
-//            for (int y = -Block.SIDE_LEN; true; y++) {
-//                boolean b = testConflict(x, y, block);
-//            }
-//        }
-//    }
 
     public void draw() {
         // 将更新界面的工作交给 FX application thread 执行
@@ -392,9 +318,9 @@ public class Container extends Canvas {
             for (int x = 0; x < columnsCount; x++) {
                 for (int y = 0; y < rowsCount; y++) {
                     if ((danglingBlock != null)
-                            && (x >= left) && (x < left + Block.SIDE_LEN)
-                            && (y >= top) && (y < top + Block.SIDE_LEN)
-                            && danglingBlock.getData()[x - left][y - top]) {
+                            && (blockLeft <= x) && (x < blockLeft + Block.SIDE_LEN)
+                            && (blockTop <= y) && (y < blockTop + Block.SIDE_LEN)
+                            && (danglingBlock.getData()[x - blockLeft][y - blockTop])) {
                         gc.setFill(Color.BLACK);
                         gc.setStroke(Color.BLACK);
                     } else {
@@ -418,78 +344,78 @@ public class Container extends Canvas {
         });
     }
 
-    /**
-     * 设置面板显示"over"
-     */
-    public void overPattern() {
-        for (int y = rowsCount - 1; y >= 0; y--) {
-            for (int x = 0; x < columnsCount; x++) {
-                statMatrix[x][y] = CellStat.EMPTY;
-            }
-        }
-
-        // "O"
-        statMatrix[1][3] = CellStat.SOLIDIFY;
-        statMatrix[1][4] = CellStat.SOLIDIFY;
-        statMatrix[1][5] = CellStat.SOLIDIFY;
-        statMatrix[1][6] = CellStat.SOLIDIFY;
-        statMatrix[1][7] = CellStat.SOLIDIFY;
-
-        statMatrix[2][3] = CellStat.SOLIDIFY;
-        statMatrix[2][7] = CellStat.SOLIDIFY;
-
-        statMatrix[3][3] = CellStat.SOLIDIFY;
-        statMatrix[3][4] = CellStat.SOLIDIFY;
-        statMatrix[3][5] = CellStat.SOLIDIFY;
-        statMatrix[3][6] = CellStat.SOLIDIFY;
-        statMatrix[3][7] = CellStat.SOLIDIFY;
-
-        // "V"
-        statMatrix[5][3] = CellStat.SOLIDIFY;
-        statMatrix[5][4] = CellStat.SOLIDIFY;
-        statMatrix[5][5] = CellStat.SOLIDIFY;
-        statMatrix[5][6] = CellStat.SOLIDIFY;
-
-        statMatrix[6][7] = CellStat.SOLIDIFY;
-
-        statMatrix[7][3] = CellStat.SOLIDIFY;
-        statMatrix[7][4] = CellStat.SOLIDIFY;
-        statMatrix[7][5] = CellStat.SOLIDIFY;
-        statMatrix[7][6] = CellStat.SOLIDIFY;
-
-        // "E"
-        statMatrix[1][9] = CellStat.SOLIDIFY;
-        statMatrix[1][10] = CellStat.SOLIDIFY;
-        statMatrix[1][11] = CellStat.SOLIDIFY;
-        statMatrix[1][12] = CellStat.SOLIDIFY;
-        statMatrix[1][13] = CellStat.SOLIDIFY;
-
-        statMatrix[2][9] = CellStat.SOLIDIFY;
-        statMatrix[3][9] = CellStat.SOLIDIFY;
-
-        statMatrix[2][11] = CellStat.SOLIDIFY;
-        statMatrix[3][11] = CellStat.SOLIDIFY;
-
-        statMatrix[2][13] = CellStat.SOLIDIFY;
-        statMatrix[3][13] = CellStat.SOLIDIFY;
-
-        // "R"
-        statMatrix[5][9] = CellStat.SOLIDIFY;
-        statMatrix[5][10] = CellStat.SOLIDIFY;
-        statMatrix[5][11] = CellStat.SOLIDIFY;
-        statMatrix[5][12] = CellStat.SOLIDIFY;
-        statMatrix[5][13] = CellStat.SOLIDIFY;
-
-        statMatrix[6][9] = CellStat.SOLIDIFY;
-        statMatrix[7][9] = CellStat.SOLIDIFY;
-
-        statMatrix[7][10] = CellStat.SOLIDIFY;
-        statMatrix[7][11] = CellStat.SOLIDIFY;
-
-        statMatrix[6][11] = CellStat.SOLIDIFY;
-
-        statMatrix[6][12] = CellStat.SOLIDIFY;
-        statMatrix[7][13] = CellStat.SOLIDIFY;
-    }
+//    /**
+//     * 设置面板显示"over"
+//     */
+//    public void overPattern() {
+//        for (int y = rowsCount - 1; y >= 0; y--) {
+//            for (int x = 0; x < columnsCount; x++) {
+//                statMatrix[x][y] = CellStat.EMPTY;
+//            }
+//        }
+//
+//        // "O"
+//        statMatrix[1][3] = CellStat.SOLIDIFY;
+//        statMatrix[1][4] = CellStat.SOLIDIFY;
+//        statMatrix[1][5] = CellStat.SOLIDIFY;
+//        statMatrix[1][6] = CellStat.SOLIDIFY;
+//        statMatrix[1][7] = CellStat.SOLIDIFY;
+//
+//        statMatrix[2][3] = CellStat.SOLIDIFY;
+//        statMatrix[2][7] = CellStat.SOLIDIFY;
+//
+//        statMatrix[3][3] = CellStat.SOLIDIFY;
+//        statMatrix[3][4] = CellStat.SOLIDIFY;
+//        statMatrix[3][5] = CellStat.SOLIDIFY;
+//        statMatrix[3][6] = CellStat.SOLIDIFY;
+//        statMatrix[3][7] = CellStat.SOLIDIFY;
+//
+//        // "V"
+//        statMatrix[5][3] = CellStat.SOLIDIFY;
+//        statMatrix[5][4] = CellStat.SOLIDIFY;
+//        statMatrix[5][5] = CellStat.SOLIDIFY;
+//        statMatrix[5][6] = CellStat.SOLIDIFY;
+//
+//        statMatrix[6][7] = CellStat.SOLIDIFY;
+//
+//        statMatrix[7][3] = CellStat.SOLIDIFY;
+//        statMatrix[7][4] = CellStat.SOLIDIFY;
+//        statMatrix[7][5] = CellStat.SOLIDIFY;
+//        statMatrix[7][6] = CellStat.SOLIDIFY;
+//
+//        // "E"
+//        statMatrix[1][9] = CellStat.SOLIDIFY;
+//        statMatrix[1][10] = CellStat.SOLIDIFY;
+//        statMatrix[1][11] = CellStat.SOLIDIFY;
+//        statMatrix[1][12] = CellStat.SOLIDIFY;
+//        statMatrix[1][13] = CellStat.SOLIDIFY;
+//
+//        statMatrix[2][9] = CellStat.SOLIDIFY;
+//        statMatrix[3][9] = CellStat.SOLIDIFY;
+//
+//        statMatrix[2][11] = CellStat.SOLIDIFY;
+//        statMatrix[3][11] = CellStat.SOLIDIFY;
+//
+//        statMatrix[2][13] = CellStat.SOLIDIFY;
+//        statMatrix[3][13] = CellStat.SOLIDIFY;
+//
+//        // "R"
+//        statMatrix[5][9] = CellStat.SOLIDIFY;
+//        statMatrix[5][10] = CellStat.SOLIDIFY;
+//        statMatrix[5][11] = CellStat.SOLIDIFY;
+//        statMatrix[5][12] = CellStat.SOLIDIFY;
+//        statMatrix[5][13] = CellStat.SOLIDIFY;
+//
+//        statMatrix[6][9] = CellStat.SOLIDIFY;
+//        statMatrix[7][9] = CellStat.SOLIDIFY;
+//
+//        statMatrix[7][10] = CellStat.SOLIDIFY;
+//        statMatrix[7][11] = CellStat.SOLIDIFY;
+//
+//        statMatrix[6][11] = CellStat.SOLIDIFY;
+//
+//        statMatrix[6][12] = CellStat.SOLIDIFY;
+//        statMatrix[7][13] = CellStat.SOLIDIFY;
+//    }
     
 }

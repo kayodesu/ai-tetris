@@ -8,13 +8,14 @@ package io.github.keyodesu.block;
 public class BlockO extends Block {
 
     public BlockO() {
+        // O型的block有一种形态
         super(1);
-        
-        // O型的block只有一种形态
-        data[0][1][2] = true;
-        data[0][1][3] = true;
-        data[0][2][2] = true;
-        data[0][2][3] = true;
+
+        // ....
+        // ....
+        // .oo.
+        // .oo.
+        data[0][1][2] = data[0][1][3] = data[0][2][2] = data[0][2][3] = true;
     }
 
     @Override

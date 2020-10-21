@@ -8,10 +8,19 @@ package io.github.keyodesu.block;
 public class BlockS extends Block {
 
     public BlockS() {
+        // S型的block有两种形态
         super(2);
-        
-        // S型的block有以下两种形态
-        data[0][1][1] = data[0][1][2] = data[0][2][2] = data[0][2][3] = true;        
+
+        // ....
+        // .o..
+        // .oo.
+        // ..o.
+        data[0][1][1] = data[0][1][2] = data[0][2][2] = data[0][2][3] = true;
+
+         // ....
+         // ....
+         // .oo.
+         // oo..
         data[1][0][3] = data[1][1][3] = data[1][1][2] = data[1][2][2] = true;
     }
 

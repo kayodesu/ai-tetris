@@ -1,6 +1,5 @@
 package io.github.keyodesu.ai;
 
-import io.github.keyodesu.Config;
 import io.github.keyodesu.Container;
 import io.github.keyodesu.block.Block;
 
@@ -32,14 +31,9 @@ public class ElTetris implements AI {
      * (= the height of the column + (the height of the piece / 2))
      */
     private static int landingHeight(Container container) {
-//        int row = statMatrix[0].length;
-//        for (int y = 0; y < row; y++) {
-//            if (statMatrix[col][y] != EMPTY)
-//                return row - y + blockHeight/2;
-//        }
-//
-//        return blockHeight/2;
-        return container.getRowsCount() - container.top + container.getDanglingBlock().getHeight()/2;
+        int h = container.getRowsCount() - container.blockTop + container.getDanglingBlock().getHeight()/2;
+        System.out.print("\n--- " + h + ", "); ////////////////////////////////////////
+        return h;
     }
 
     /**
@@ -61,6 +55,7 @@ public class ElTetris implements AI {
             }
         }
 
+        System.out.print(num + ", "); ////////////////////////////////////////
         return num;
     }
 
@@ -89,6 +84,7 @@ public class ElTetris implements AI {
                 transitions++;
         }
 
+        System.out.print(transitions + ", "); ////////////////////////////////////////
         return transitions;
     }
 
@@ -114,15 +110,17 @@ public class ElTetris implements AI {
                 transitions++;
         }
 
+        System.out.print(transitions + ", "); ////////////////////////////////////////
         return transitions;
     }
 
     /**
      * 5. Number of Holes: A hole is an empty cell
      * that has at least one filled cell above it in the same column.
+     * 一个 empty cell 的紧挨着的上方是一个 filled cell，此 empty cell 就是一个 hole
      */
     private static int numberOfHoles(Container.CellStat[][] statMatrix) {
-        int num = 0;
+        int num = 0; // number of holes
 
         for (var column : statMatrix) {
             boolean filledCellAbove = false;
@@ -131,36 +129,65 @@ public class ElTetris implements AI {
                     filledCellAbove = true;
                 } else if (filledCellAbove) {
                     num++;
+                    filledCellAbove = false;
                 }
             }
         }
 
+        System.out.print(num + ", "); ////////////////////////////////////////
         return num;
     }
 
 
     /**
-     * 6. Well Sums: A well is a succession of empty cells
-     * such that their left cells and right cells are both filled.
+     * 6. Well Sums: A well is a sequence of empty cells above the top piece in a column
+     * such that the top cell in the sequence is surrounded (left and right)
+     * by occupied cells or a boundary of the board.
+     *
+     * @return :
+     *    The well sums. For a well of length n, we define the well sums as
+     *    1 + 2 + 3 + ... + n. This gives more significance to deeper holes.
      */
     private static int wellSums(Container.CellStat[][] statMatrix) {
         int sums = 0;
-        int num = 0;
 
         for (int x = 0; x < statMatrix.length; x++) {
+            int deep = 0;
+            boolean inWell = false;
+
             for (int y = 0; y < statMatrix[x].length; y++) {
-                if ((statMatrix[x][y] == EMPTY)
-                        && (x-1 < 0 || statMatrix[x-1][y] != EMPTY)
-                        && (x+1 >= statMatrix.length || statMatrix[x+1][y] != EMPTY)) {
-                    num++;
-                } else if (num > 0) {
-                    sums += IntStream.rangeClosed(0, num).sum();
-                    num = 0;
+                if (!inWell) {
+                    if ((statMatrix[x][y] == EMPTY)
+                            && ((x-1 < 0) || (statMatrix[x-1][y] != EMPTY))
+                            && ((x+1 >= statMatrix.length) || (statMatrix[x+1][y] != EMPTY))) {
+                        inWell = true;
+                        deep = 1;
+                    }
+                } else { // in well
+                    if (statMatrix[x][y] == EMPTY)
+                        deep++;
+                    else
+                        break; // 触底了
                 }
             }
+
+            sums += IntStream.rangeClosed(0, deep).sum();
         }
 
-        sums += IntStream.rangeClosed(0, num).sum();
+//        for (int x = 0; x < statMatrix.length; x++) {
+//            for (int y = 0; y < statMatrix[x].length; y++) {
+//                if ((statMatrix[x][y] == EMPTY)
+//                        && ((x-1 < 0) || (statMatrix[x-1][y] != EMPTY))
+//                        && ((x+1 >= statMatrix.length) || (statMatrix[x+1][y] != EMPTY))) {
+//                    num++;
+//                } else if (num > 0) {
+//                    sums += IntStream.rangeClosed(0, num).sum();
+//                    num = 0;
+//                }
+//            }
+//        }
+
+        System.out.println(sums + " ---"); ////////////////////////////////////////
         return sums;
     }
 
@@ -179,32 +206,32 @@ public class ElTetris implements AI {
         assert block != null;
 
         double maxScore = Double.NEGATIVE_INFINITY;
-        int col = Integer.MIN_VALUE;
-        int blockStat = -1;
+        int col = 0;
+        int blockStat = 1;
 
         for (int i = block.getStatsCount(); i > 0; i--) {
-            for (int x = -Block.SIDE_LEN + 1; x < Config.COL; x++) {
+            System.out.print(block.getClass().getSimpleName() + ", " + block.getStat() + ": "); ///////////////////////////////////////////////////////////////
+            for (int x = -Block.SIDE_LEN + 1; x < container.getColumnsCount(); x++) {
                 Container.ConflictType type = container.setDanglingBlock(x, -Block.SIDE_LEN, block);
                 if (type != NONE_CONFLICT) {
+                    System.out.print("[" + x + "]" + 100 + ", "); ///////////////////////////////////////////////////////////////
                     continue;
                 }
 
-                while (container.tryMoveDown()) {
-//                    try {
-//                        Thread.sleep(1); /////////////////////////////////////////////////////
-//                    } catch (InterruptedException e) {
-//                        e.printStackTrace();
-//                    }
-                }
+                while (container.tryMoveDown());
 
-//                if (container.isFull()) {
+//                if (container.blockTop <= 0) {
+//                    System.out.print("(" + x + ")" + container.blockTop + ", "); ///////////////////////////////////////////////////////////////
 //                    continue;
 //                }
 
                 // block 已经悬停在底部了
+
                 container.pasteDanglingBlock();
                 double score = evaluateScore(container);
                 container.unPasteDanglingBlock();
+
+                System.out.print("[" + x + "," + container.blockTop + "]" + score + ", "); ///////////////////////////////////////////////////////////////
 
                 if (score > maxScore) {
                     maxScore = score;
@@ -213,6 +240,7 @@ public class ElTetris implements AI {
                 }
             }
 
+            System.out.println(); ///////////////////////////////////////////////////////////////
             block.switchToNextStat();
         }
 

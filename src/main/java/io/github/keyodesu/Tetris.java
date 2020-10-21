@@ -304,7 +304,7 @@ public class Tetris extends Application {
         infoPanel.getChildren().add(new Text()); // empty text to separate
 
         infoPanel.getChildren().add(new Label("Hi-Score"));
-        HiScoreLabel = new Text(String.valueOf(-1));
+        HiScoreLabel = new Text("unknown");
         HiScoreLabel.setStyle("-fx-font-weight: bold");
         infoPanel.getChildren().add(HiScoreLabel);
 
@@ -422,8 +422,8 @@ public class Tetris extends Application {
 
             actionQueue.clear();
 
-            gameContainer.overPattern();
-            gameContainer.draw();
+//            gameContainer.overPattern();
+//            gameContainer.draw();
 
 //                nextBlockPanel.resetPanel();
 //                nextBlockPanel.drawPanel();
