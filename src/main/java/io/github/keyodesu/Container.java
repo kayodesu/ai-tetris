@@ -44,34 +44,38 @@ public class Container extends Canvas {
 
     // 画布状态表示
     private CellStat[][] statMatrix;
-    private int col, row;
+    private int columnsCount, rowsCount;
 
-    public Container(double width, double height, int col, int row) {
+    public int getRowsCount() {
+        return rowsCount;
+    }
+
+    public Container(double width, double height, int columnsCount, int rowsCount) {
         super(width, height);
 
-        this.col = col;
-        this.row = row;
-        statMatrix = new CellStat[col][row];
+        this.columnsCount = columnsCount;
+        this.rowsCount = rowsCount;
+        statMatrix = new CellStat[columnsCount][rowsCount];
 
 //        this.width = width;
 //        this.height = height;
 
         // blockSideLen*COL + GAP_BETWEEN_BLOCKS_PROPORTION*blockSideLen*(COL-1) = width
-        var len0 = width / (col + GAP_BETWEEN_BLOCKS_PROPORTION*(col-1));
-        var len1 = height / (row + GAP_BETWEEN_BLOCKS_PROPORTION*(row-1));
+        var len0 = width / (columnsCount + GAP_BETWEEN_BLOCKS_PROPORTION*(columnsCount-1));
+        var len1 = height / (rowsCount + GAP_BETWEEN_BLOCKS_PROPORTION*(rowsCount-1));
 //        System.out.println("xx, yy " + xx + ", " + yy);
         blockSideLen = Math.min(len0, len1);
         gapBetweenBlocks = blockSideLen * GAP_BETWEEN_BLOCKS_PROPORTION;
         gapInnerBlock = blockSideLen * GAP_INNER_BLOCK_PROPORTION;
 
         System.out.println(width + ", " + height);
-        System.out.println(blockSideLen*col + GAP_BETWEEN_BLOCKS_PROPORTION*blockSideLen*(col-1) + ", "
-                + blockSideLen*row + GAP_BETWEEN_BLOCKS_PROPORTION*blockSideLen*(row-1));
+        System.out.println(blockSideLen*columnsCount + GAP_BETWEEN_BLOCKS_PROPORTION*blockSideLen*(columnsCount-1) + ", "
+                + blockSideLen*rowsCount + GAP_BETWEEN_BLOCKS_PROPORTION*blockSideLen*(rowsCount-1));
 
         gc = getGraphicsContext2D();
 
-        for(int x = 0; x < col; x++)
-            for(int y = 0; y < row; y++)
+        for(int x = 0; x < columnsCount; x++)
+            for(int y = 0; y < rowsCount; y++)
                 statMatrix[x][y] = CellStat.EMPTY;
     }
 
@@ -82,7 +86,7 @@ public class Container extends Canvas {
     private boolean full = false;
 
     private Block danglingBlock;
-    private int left, top;
+    public int left, top; // danglingBlock 的坐标
 
     public ConflictType setDanglingBlock(int left, int top, Block block) {
         ConflictType type = testBoundAndConflict(left, top, block);
@@ -171,18 +175,18 @@ public class Container extends Canvas {
     private int removeFullLines() {
         int notFullLineCount = 0;
 
-        CellStat[][] tmp = new CellStat[col][row];
-        for (int x = 0; x < col; x++)
-            for (int y = 0; y < row; y++)
+        CellStat[][] tmp = new CellStat[columnsCount][rowsCount];
+        for (int x = 0; x < columnsCount; x++)
+            for (int y = 0; y < rowsCount; y++)
                 tmp[x][y] = CellStat.EMPTY;
 
-        int j = row - 1;
+        int j = rowsCount - 1;
 
-        for (int y = row - 1; y >= 0; y--) {
-            for (int x = 0; x < col; x++) {
+        for (int y = rowsCount - 1; y >= 0; y--) {
+            for (int x = 0; x < columnsCount; x++) {
                 if (statMatrix[x][y] == CellStat.EMPTY) {
                     // 发现一未满行，将此行复制的tmp数组的对应位置
-                    for (int i = 0, t = 0; i < col; i++, t++) {
+                    for (int i = 0, t = 0; i < columnsCount; i++, t++) {
                         tmp[i][j] = statMatrix[t][y];
                     }
                     j--;
@@ -192,14 +196,14 @@ public class Container extends Canvas {
             }
         }
 
-        for (int x = 0; x < col; x++) {
-            for (int y = 0; y < row; y++) {
+        for (int x = 0; x < columnsCount; x++) {
+            for (int y = 0; y < rowsCount; y++) {
                 statMatrix[x][y] = tmp[x][y];
             }
         }
 
         //draw();
-        return row - notFullLineCount;
+        return rowsCount - notFullLineCount;
     }
 
     public int merger() {
@@ -251,8 +255,8 @@ public class Container extends Canvas {
     }
 
     public void unPasteDanglingBlock() {
-        for(int x = 0; x < col; x++) {
-            for(int y = 0; y < row; y++) {
+        for(int x = 0; x < columnsCount; x++) {
+            for(int y = 0; y < rowsCount; y++) {
                 if(statMatrix[x][y] == CellStat.MOVING)
                     statMatrix[x][y] = CellStat.EMPTY;
             }
@@ -291,9 +295,9 @@ public class Container extends Canvas {
 
                     if(i < 0)
                         return ConflictType.OUT_OF_LEFT_BOUND;
-                    if(i >= col)
+                    if(i >= columnsCount)
                         return ConflictType.OUT_OF_RIGHT_BOUND;
-                    if(j >= row)
+                    if(j >= rowsCount)
                         return ConflictType.OUT_OF_BOTTOM_BOUND;
 
                     // 小方块从顶部刚出来时是可以显示不全的，所以（j<0）不算越界
@@ -331,7 +335,7 @@ public class Container extends Canvas {
 //    }
 
 //    public ConflictType pasteBlockBottom(int column, Block block) {
-//        for (int r = -Block.SIDE_LEN; r < row; r++) {
+//        for (int r = -Block.SIDE_LEN; r < rowsCount; r++) {
 //            ConflictType type = pasteBlock(column, r, block);
 //            if (type == ConflictType.OUT_OF_LEFT_BOUND || type == ConflictType.OUT_OF_RIGHT_BOUND)
 //                return type;
@@ -349,8 +353,8 @@ public class Container extends Canvas {
 //    }
 
 //    public void cleanAllBlocksMovingStat() {
-//        for(int x = 0; x < col; x++) {
-//            for(int y = 0; y < row; y++) {
+//        for(int x = 0; x < columnsCount; x++) {
+//            for(int y = 0; y < rowsCount; y++) {
 //                if(statMatrix[x][y] == CellStat.MOVING)
 //                    statMatrix[x][y] = CellStat.EMPTY;
 //            }
@@ -358,8 +362,8 @@ public class Container extends Canvas {
 //    }
 
 //    public void solidifyAllBlocksMovingStat() {
-//        for(int x = 0; x < col; x++) {
-//            for(int y = 0; y < row; y++) {
+//        for(int x = 0; x < columnsCount; x++) {
+//            for(int y = 0; y < rowsCount; y++) {
 //                if(statMatrix[x][y] == CellStat.MOVING)
 //                    statMatrix[x][y] = CellStat.SOLIDIFY;
 //            }
@@ -385,11 +389,11 @@ public class Container extends Canvas {
             double lineWidth = 1;
             gc.setLineWidth(lineWidth);
 
-            for (int x = 0; x < col; x++) {
-                for (int y = 0; y < row; y++) {
-                    if (danglingBlock != null
-                            && x >= left && x < left + Block.SIDE_LEN
-                            && y >= top && y < top + Block.SIDE_LEN
+            for (int x = 0; x < columnsCount; x++) {
+                for (int y = 0; y < rowsCount; y++) {
+                    if ((danglingBlock != null)
+                            && (x >= left) && (x < left + Block.SIDE_LEN)
+                            && (y >= top) && (y < top + Block.SIDE_LEN)
                             && danglingBlock.getData()[x - left][y - top]) {
                         gc.setFill(Color.BLACK);
                         gc.setStroke(Color.BLACK);
@@ -418,8 +422,8 @@ public class Container extends Canvas {
      * 设置面板显示"over"
      */
     public void overPattern() {
-        for (int y = row - 1; y >= 0; y--) {
-            for (int x = 0; x < col; x++) {
+        for (int y = rowsCount - 1; y >= 0; y--) {
+            for (int x = 0; x < columnsCount; x++) {
                 statMatrix[x][y] = CellStat.EMPTY;
             }
         }

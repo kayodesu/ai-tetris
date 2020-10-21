@@ -102,20 +102,20 @@ public class Tetris extends Application {
          * 触底后的处理
          */
         private void touchBottom() {
-            int removedLinesCount = gameContainer.merger();
-            if(removedLinesCount > 0) {
-                System.out.println("removed " + removedLinesCount + " line(s)");
+            int eliminatedLinesCount = gameContainer.merger();
+            if(eliminatedLinesCount > 0) {
+                System.out.println("eliminated " + eliminatedLinesCount + " row(s)");
 
-                if (removedLinesCount == 1)
+                if (eliminatedLinesCount == 1)
                     currScore += 10;   //  一次消除一层： 获得10积分
-                else if (removedLinesCount == 2)
+                else if (eliminatedLinesCount == 2)
                     currScore += 30;   //  一次消除二层： 获得30积分
-                else if (removedLinesCount == 3)
+                else if (eliminatedLinesCount == 3)
                     currScore += 60;   //  一次消除三层： 获得60积分
-                else if (removedLinesCount == 4)
+                else if (eliminatedLinesCount == 4)
                     currScore += 100;  //  一次消除四层： 获得100积分
                 else
-                    throw new NeverReachHereError("error. removed " + removedLinesCount + " line(s)");
+                    throw new NeverReachHereError("error. Eliminated " + eliminatedLinesCount + " row(s)");
 
 //                if(currScore > heightestScore) {
 //                    heightestScore = currScore;

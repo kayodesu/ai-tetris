@@ -28,18 +28,18 @@ public class ElTetris implements AI {
     private static final double WELL_SUMS_WEIGHT          = -3.3855972247263626;
 
     /**
-     * 1. Landing Height: The height where the piece is put (= the height of the column + (the height of the piece / 2))
+     * 1. Landing Height: The height where the piece is put
+     * (= the height of the column + (the height of the piece / 2))
      */
-    private static int landingHeight(Container.CellStat[][] statMatrix, int blockHeight) {
-        int row = statMatrix[0].length;
-        for (int y = 0; y < row; y++) {
-            for (int x = 0; x < statMatrix.length; x++) {
-                if (statMatrix[x][y] != EMPTY)
-                    return row - y + blockHeight/2;
-            }
-        }
-
-        return blockHeight/2;
+    private static int landingHeight(Container container) {
+//        int row = statMatrix[0].length;
+//        for (int y = 0; y < row; y++) {
+//            if (statMatrix[col][y] != EMPTY)
+//                return row - y + blockHeight/2;
+//        }
+//
+//        return blockHeight/2;
+        return container.getRowsCount() - container.top + container.getDanglingBlock().getHeight()/2;
     }
 
     /**
@@ -56,7 +56,7 @@ public class ElTetris implements AI {
                 if (statMatrix[x][y] == EMPTY)
                     break;
             }
-            if (x == col) { // find a full line
+            if (x == col) { // find a full row
                 num++;
             }
         }
@@ -66,44 +66,60 @@ public class ElTetris implements AI {
 
     /**
      * 3. Row Transitions: The total number of row transitions.
-     * A row transition occurs when an empty cell is adjacent to a filled cell on the same row and vice versa.
+     * A row transition occurs when an empty cell is adjacent to a filled cell
+     * on the same row and vice versa.
+     * 左右边界视为filled cell
      */
     private static int rowTransitions(Container.CellStat[][] statMatrix) {
-        int count = 0;
+        int transitions = 0;
 
-        for (int x = 0; x < statMatrix.length; x++) {
-            for (int y = 0; y < statMatrix[x].length; y++) {
-                if ((statMatrix[x][y] == EMPTY)
-                        && ((x-1 >= 0 && statMatrix[x-1][y] != EMPTY) || (x+1 < statMatrix.length && statMatrix[x+1][y] != EMPTY))) {
-                    count++;
+        int col = statMatrix.length;
+        int row = statMatrix[0].length;
+
+        for (int y = 0; y < row; y++) {
+            var lastStat = SOLIDIFY;
+
+            for (var column : statMatrix) {
+                if (column[y] != lastStat) {
+                    lastStat = column[y];
+                    transitions++;
                 }
             }
+            if (statMatrix[col-1][y] == EMPTY)
+                transitions++;
         }
 
-        return count;
+        return transitions;
     }
 
     /**
      * 4. Column Transitions: The total number of column transitions.
-     * A column transition occurs when an empty cell is adjacent to a filled cell on the same column and vice versa.
+     * A column transition occurs when an empty cell is adjacent to a filled cell
+     * on the same column and vice versa.
+     * 上下边界视为filled cell
      */
     private static int columnTransitions(Container.CellStat[][] statMatrix) {
-        int count = 0;
+        int transitions = 0;
 
         for (var column : statMatrix) {
-            for (int y = 0; y < column.length; y++) {
-                if ((column[y] == EMPTY)
-                        && ((y - 1 >= 0 && column[y - 1] != EMPTY) || (y + 1 < column.length && column[y + 1] != EMPTY))) {
-                    count++;
+            var lastStat = SOLIDIFY;
+
+            for (var stat : column) {
+                if (stat != lastStat) {
+                    transitions++;
+                    lastStat = stat;
                 }
             }
+            if (column[column.length-1] == EMPTY)
+                transitions++;
         }
 
-        return count;
+        return transitions;
     }
 
     /**
-     * 5. Number of Holes: A hole is an empty cell that has at least one filled cell above it in the same column.
+     * 5. Number of Holes: A hole is an empty cell
+     * that has at least one filled cell above it in the same column.
      */
     private static int numberOfHoles(Container.CellStat[][] statMatrix) {
         int num = 0;
@@ -111,7 +127,7 @@ public class ElTetris implements AI {
         for (var column : statMatrix) {
             boolean filledCellAbove = false;
             for (var stat : column) {
-                if (stat == SOLIDIFY) {
+                if (stat != EMPTY) {
                     filledCellAbove = true;
                 } else if (filledCellAbove) {
                     num++;
@@ -124,7 +140,8 @@ public class ElTetris implements AI {
 
 
     /**
-     * 6. Well Sums: A well is a succession of empty cells such that their left cells and right cells are both filled.
+     * 6. Well Sums: A well is a succession of empty cells
+     * such that their left cells and right cells are both filled.
      */
     private static int wellSums(Container.CellStat[][] statMatrix) {
         int sums = 0;
@@ -149,7 +166,7 @@ public class ElTetris implements AI {
 
     private static double evaluateScore(Container container) {
         Container.CellStat[][] statMatrix = container.getStatMatrix();
-        return landingHeight(statMatrix, container.getDanglingBlock().getHeight())*LANDING_HEIGHT_WEIGHT
+        return landingHeight(container) * LANDING_HEIGHT_WEIGHT
                 + rowsEliminated(statMatrix)*ROWS_ELIMINATED_WEIGHT
                 + rowTransitions(statMatrix)*ROW_TRANSITIONS_WEIGHT
                 + columnTransitions(statMatrix)*COLUMN_TRANSITIONS_WEIGHT
