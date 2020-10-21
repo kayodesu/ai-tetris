@@ -158,7 +158,6 @@ public class ElTetris implements AI {
     }
 
     public void calBestColAndStat() {
-        System.out.println("[in calBestColAndStat]"); //////////////////////////////////////
         Block block = container.getDanglingBlock();
         assert block != null;
 
@@ -167,17 +166,15 @@ public class ElTetris implements AI {
         int blockStat = -1;
 
         for (int i = block.getStatsCount(); i > 0; i--) {
-            System.out.println("-------------------------------- " + i); //////////////////////////////////////
             for (int x = -Block.SIDE_LEN + 1; x < Config.COL; x++) {
-                System.out.print(x + ", "); //////////////////////////////////////
-                Container.ConflictType type = container.setDanglingBlock(x, 0, block);
+                Container.ConflictType type = container.setDanglingBlock(x, -Block.SIDE_LEN, block);
                 if (type != NONE_CONFLICT) {
                     continue;
                 }
 
                 while (container.tryMoveDown()) {
 //                    try {
-//                        Thread.sleep(10); /////////////////////////////////////////////////////
+//                        Thread.sleep(1); /////////////////////////////////////////////////////
 //                    } catch (InterruptedException e) {
 //                        e.printStackTrace();
 //                    }
@@ -188,9 +185,9 @@ public class ElTetris implements AI {
 //                }
 
                 // block 已经悬停在底部了
-                container.danglingMerger();
+                container.pasteDanglingBlock();
                 double score = evaluateScore(container);
-                container.undoDanglingMerger();
+                container.unPasteDanglingBlock();
 
                 if (score > maxScore) {
                     maxScore = score;
@@ -198,16 +195,14 @@ public class ElTetris implements AI {
                     blockStat = block.getStat();
                 }
             }
-            System.out.println(); //////////////////////////////////////
+
             block.switchToNextStat();
         }
 
         assert blockStat > 0;
         block.switchToStat(blockStat);
-         System.out.println("col: " + col); ////////////////////////////////////////////////////////////////////////////
-//        col = 5;  ///////////////////////////////////////todo//////////////////////////////////////////////////
+//         System.out.println("col: " + col); ////////////////////////////////////////////////////////////////////////////
         container.setDanglingBlock(col, -Block.SIDE_LEN, block);
-        System.out.println("[out calBestColAndStat]"); //////////////////////////////////////
     }
 
     public void stop() {

@@ -1,6 +1,7 @@
 package io.github.keyodesu;
 
 import io.github.keyodesu.block.Block;
+import javafx.application.Platform;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
@@ -37,8 +38,8 @@ public class Container extends Canvas {
 //    private double width;
 //    private double height;
 
-    private double blockSideLen;
-    private double gapBetweenBlocks;
+    public double blockSideLen;
+    public double gapBetweenBlocks;
     private double gapInnerBlock;
 
     // 画布状态表示
@@ -147,10 +148,6 @@ public class Container extends Canvas {
             draw();
             return true;
         }
-
-        if (top < 0) {
-            full = true;
-        }
         return false;
     }
 
@@ -165,22 +162,82 @@ public class Container extends Canvas {
         return false;
     }
 
-    public void merger() {
+    /**
+     * 消除满行。
+     * 先将panel的所有未满行复制到一个临时的数组中，
+     * 在将此临时数组复制的panel中
+     * @return 移除的行数
+     */
+    private int removeFullLines() {
+        int notFullLineCount = 0;
+
+        CellStat[][] tmp = new CellStat[col][row];
+        for (int x = 0; x < col; x++)
+            for (int y = 0; y < row; y++)
+                tmp[x][y] = CellStat.EMPTY;
+
+        int j = row - 1;
+
+        for (int y = row - 1; y >= 0; y--) {
+            for (int x = 0; x < col; x++) {
+                if (statMatrix[x][y] == CellStat.EMPTY) {
+                    // 发现一未满行，将此行复制的tmp数组的对应位置
+                    for (int i = 0, t = 0; i < col; i++, t++) {
+                        tmp[i][j] = statMatrix[t][y];
+                    }
+                    j--;
+                    notFullLineCount++;
+                    break;
+                }
+            }
+        }
+
+        for (int x = 0; x < col; x++) {
+            for (int y = 0; y < row; y++) {
+                statMatrix[x][y] = tmp[x][y];
+            }
+        }
+
+        //draw();
+        return row - notFullLineCount;
+    }
+
+    public int merger() {
         assert danglingBlock != null;
         assert testBoundAndConflict(left, top, danglingBlock) == ConflictType.NONE_CONFLICT;
 
         for(int x = 0; x < Block.SIDE_LEN; x++) {
             for(int y = 0; y < Block.SIDE_LEN; y++) {
-                // 上方屏幕外图形的不合并
-                if(top + y > 0 && danglingBlock.getData()[x][y])
-                    statMatrix[left + x][top + y] = CellStat.SOLIDIFY;
+                if(danglingBlock.getData()[x][y]) {
+                    // 上方屏幕外图形的不合并
+                    if (top + y < 0) {
+                        full = true;
+                    } else {
+                        statMatrix[left + x][top + y] = CellStat.SOLIDIFY;
+                    }
+                }
+            }
+        }
+
+        int removedLinesCount = removeFullLines();
+        if (removedLinesCount > 0 && top < 0) {
+            top += removedLinesCount; // 下移 removedLinesCount 行
+            if (top > 0) {
+                full = false;
+
+                for(int x = 0; x < Block.SIDE_LEN; x++)
+                    for(int y = 0; y < removedLinesCount; y++)
+                        if(danglingBlock.getData()[x][y])
+                            statMatrix[left + x][top + y] = CellStat.SOLIDIFY;
             }
         }
 
         danglingBlock = null;
+        draw();
+        return removedLinesCount;
     }
 
-    public void danglingMerger() {
+    public void pasteDanglingBlock() {
         assert danglingBlock != null;
         assert testBoundAndConflict(left, top, danglingBlock) == ConflictType.NONE_CONFLICT;
 
@@ -193,7 +250,7 @@ public class Container extends Canvas {
         }
     }
 
-    public void undoDanglingMerger() {
+    public void unPasteDanglingBlock() {
         for(int x = 0; x < col; x++) {
             for(int y = 0; y < row; y++) {
                 if(statMatrix[x][y] == CellStat.MOVING)
@@ -309,46 +366,6 @@ public class Container extends Canvas {
 //        }
 //    }
 
-    /**
-     * 消除满行。
-     * 先将panel的所有未满行复制到一个临时的数组中，
-     * 在将此临时数组复制的panel中
-     * @return 移除的行数
-     */
-    public int removeFullLines() {
-        int notFullLineCount = 0;
-
-        CellStat[][] tmp = new CellStat[col][row];
-        for (int x = 0; x < col; x++)
-            for (int y = 0; y < row; y++)
-                tmp[x][y] = CellStat.EMPTY;
-
-        int j = row - 1;
-
-        for (int y = row - 1; y >= 0; y--) {
-            for (int x = 0; x < col; x++) {
-                if (statMatrix[x][y] == CellStat.EMPTY) {
-                    // 发现一未满行，将此行复制的tmp数组的对应位置
-                    for (int i = 0, t = 0; i < col; i++, t++) {
-                        tmp[i][j] = statMatrix[t][y];
-                    }
-                    j--;
-                    notFullLineCount++;
-                    break;
-                }
-            }
-        }
-
-        for (int x = 0; x < col; x++) {
-            for (int y = 0; y < row; y++) {
-                statMatrix[x][y] = tmp[x][y];
-            }
-        }
-
-        draw();
-        return row - notFullLineCount;
-    }
-
 //    /**
 //     * 模拟将一个block放置在底部，从左到右依次放置
 //     * @param block
@@ -363,35 +380,38 @@ public class Container extends Canvas {
 //    }
 
     public void draw() {
-        double lineWidth = 1;
-        gc.setLineWidth(lineWidth);
+        // 将更新界面的工作交给 FX application thread 执行
+        Platform.runLater(() -> {
+            double lineWidth = 1;
+            gc.setLineWidth(lineWidth);
 
-        for(int x = 0; x < col; x++) {
-            for (int y = 0; y < row; y++) {
-                if (danglingBlock != null
-                        && x >= left && x < left + Block.SIDE_LEN
-                        && y >= top && y < top + Block.SIDE_LEN
-                        && danglingBlock.getData()[x-left][y-top]) {
-                    gc.setFill(Color.BLACK);
-                    gc.setStroke(Color.BLACK);
-                } else {
-                    if (statMatrix[x][y] == CellStat.EMPTY) {
-                        gc.setFill(Color.GRAY);
-                        gc.setStroke(Color.GRAY);
-                    } else if (statMatrix[x][y] == CellStat.SOLIDIFY) {
+            for (int x = 0; x < col; x++) {
+                for (int y = 0; y < row; y++) {
+                    if (danglingBlock != null
+                            && x >= left && x < left + Block.SIDE_LEN
+                            && y >= top && y < top + Block.SIDE_LEN
+                            && danglingBlock.getData()[x - left][y - top]) {
                         gc.setFill(Color.BLACK);
                         gc.setStroke(Color.BLACK);
+                    } else {
+                        if (statMatrix[x][y] == CellStat.EMPTY) {
+                            gc.setFill(Color.GRAY);
+                            gc.setStroke(Color.GRAY);
+                        } else if (statMatrix[x][y] == CellStat.SOLIDIFY) {
+                            gc.setFill(Color.BLACK);
+                            gc.setStroke(Color.BLACK);
+                        }
                     }
-                }
 
-                double x0 = x*blockSideLen + x*gapBetweenBlocks;
-                double y0 = y*blockSideLen + y*gapBetweenBlocks;
-                gc.strokeRect(x0, y0, blockSideLen, blockSideLen);
-                x0 += gapInnerBlock;
-                y0 += gapInnerBlock;
-                gc.fillRect(x0, y0, blockSideLen - 2*gapInnerBlock, blockSideLen - 2*gapInnerBlock);
+                    double x0 = x * blockSideLen + x * gapBetweenBlocks;
+                    double y0 = y * blockSideLen + y * gapBetweenBlocks;
+                    gc.strokeRect(x0, y0, blockSideLen, blockSideLen);
+                    x0 += gapInnerBlock;
+                    y0 += gapInnerBlock;
+                    gc.fillRect(x0, y0, blockSideLen - 2 * gapInnerBlock, blockSideLen - 2 * gapInnerBlock);
+                }
             }
-        }
+        });
     }
 
     /**

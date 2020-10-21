@@ -4,29 +4,28 @@ import io.github.keyodesu.ai.AI;
 import io.github.keyodesu.ai.ElTetris;
 import io.github.keyodesu.block.Block;
 import javafx.application.Application;
-import javafx.event.EventHandler;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
-import javafx.scene.canvas.Canvas;
-import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.paint.*;
 import javafx.scene.shape.Line;
+import javafx.scene.text.Text;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 
+import java.util.ResourceBundle;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.function.BooleanSupplier;
-import java.util.function.Function;
 
-import static io.github.keyodesu.Config.*;
 import static io.github.keyodesu.Tetris.Action.*;
 
 /**
@@ -34,18 +33,13 @@ import static io.github.keyodesu.Tetris.Action.*;
  */
 public class Tetris extends Application {
 
-    private double windowWidth;
-    private double windowHeight;
-
-    private double gameWidth;
-    private double gameHeight;
-
-    private boolean isGameOver = false; // 一局游戏结束
-    private boolean isInPause = false; // 游戏是否在暂停中
+    private volatile boolean isGameOver = false; // 一局游戏结束
+    private volatile boolean isInPause = false; // 游戏是否在暂停中
     private boolean isMute = false;  // 是否静音
 //    private MediaPlayer player; // 用来播放背景音乐
 
     private Container gameContainer;
+    private Container nextBlockContainer;
     private boolean aiPlaying = false;
     private AI ai;
 
@@ -84,14 +78,15 @@ public class Tetris extends Application {
                 if (currLevel >= 1 && currLevel <= 10) {
                     Thread.sleep(downRate[currLevel]);
                 } else {
-                    throw new NeverReachHereError();
-//                        Log.e(TAG, "错误，不应该走到这里。currLeven = " + currLevel);
+                    throw new NeverReachHereError("currLevel = " + currLevel);
                 }
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
     });
+
+    private static final int FAST_DOWN_CELL_COUNT = 3;
 
     /*
      * 工作线程
@@ -101,29 +96,26 @@ public class Tetris extends Application {
         private static final int BEGIN_X = 3;  // 默认小方块从第3列出来
         private static final int BEGIN_Y = -Block.SIDE_LEN;
 
-        private Block nextBlock = Block.getRandomBlock();
+        private Block nextBlock;
 
         /**
          * 触底后的处理
          */
         private void touchBottom() {
-            gameContainer.merger();
+            int removedLinesCount = gameContainer.merger();
+            if(removedLinesCount > 0) {
+                System.out.println("removed " + removedLinesCount + " line(s)");
 
-            int removeLineCount = gameContainer.removeFullLines();
-            if(removeLineCount > 0) {
-//                Log.i(TAG, "消除了" + removeLineCount + "行");
-//                gameContainer.draw();
-
-                if (removeLineCount == 1)
+                if (removedLinesCount == 1)
                     currScore += 10;   //  一次消除一层： 获得10积分
-                else if (removeLineCount == 2)
+                else if (removedLinesCount == 2)
                     currScore += 30;   //  一次消除二层： 获得30积分
-                else if (removeLineCount == 3)
+                else if (removedLinesCount == 3)
                     currScore += 60;   //  一次消除三层： 获得60积分
-                else if (removeLineCount == 4)
+                else if (removedLinesCount == 4)
                     currScore += 100;  //  一次消除四层： 获得100积分
                 else
-//                    Log.e(TAG, "错误，不应该走到这里！消除了" + removeLineCount + "行");
+                    throw new NeverReachHereError("error. removed " + removedLinesCount + " line(s)");
 
 //                if(currScore > heightestScore) {
 //                    heightestScore = currScore;
@@ -153,15 +145,19 @@ public class Tetris extends Application {
                     currLevel = 9;
                 else currLevel = 10;
 
-//                Message msg = new Message();
-//                msg.what = GAME_INFO_CHANGE;
-//                handler.sendMessage(msg);
+                // 将更新界面的工作交给 FX application thread 执行
+                Platform.runLater(() -> {
+                    scoreLabel.setText(String.valueOf(currScore));
+                    levelLabel.setText(String.valueOf(currLevel));
+                    speedLabel.setText("unknown"); // todo
+                });
             }
 
-//            currBlock = nextBlock;
             gameContainer.setDanglingBlock(BEGIN_X, BEGIN_Y, nextBlock);
             nextBlock = Block.getRandomBlock();
 
+            nextBlockContainer.setDanglingBlock(0, 0, nextBlock);
+            nextBlockContainer.draw();
 //            nextBlockPanel.setBlockStat(0, 0, 4, 4, nextBlock.getData());
 //            nextBlockPanel.drawPanel();
 
@@ -174,17 +170,18 @@ public class Tetris extends Application {
         public void run() {
             gameContainer.setDanglingBlock(BEGIN_X, BEGIN_Y, Block.getRandomBlock());
 
+            nextBlock = Block.getRandomBlock();
+            nextBlockContainer.setDanglingBlock(0, 0, nextBlock);
+            nextBlockContainer.draw();
+
             while (!isGameOver) {
                 try {
-                    System.out.println("aiPlaying: " + aiPlaying); //////////////////////////////////////
                     if (aiPlaying) {
                         ai.calBestColAndStat();
                         while (gameContainer.moveDown()) {
                             Thread.sleep(10);
                         }
-                        System.out.println("1111111111111111111111"); //////////////////////////////////////
                         touchBottom();
-                        System.out.println("22222222222222222222222"); //////////////////////////////////////
                     } else {
 //                    nextBlockPanel.setBlockStat(0, 0, 4, 4, nextBlock.getData());  todo
 //                    nextBlockPanel.drawPanel();
@@ -236,6 +233,31 @@ public class Tetris extends Application {
         }
     });
 
+    private static final String TITLE = "AI Tetris";
+
+    private static final int ROW = 20;   // 行数
+    private static final int COL = 10;   // 列数
+
+    // padding 相当于 窗口高度的比例
+    private static final double WINDOW_PADDING_PROPORTION = 0.006;   // 1%
+    // spacing 相当于 窗口高度的比例
+    private static final double WINDOW_SPACING_PROPORTION = 0.006;   // 1%
+
+    private static final String BACKGROUND_COLOR = "0xa7b7b1";
+
+    private static final String PAUSE = "Pause";
+    private static final String START = "Start";
+    private static final String RESTART = "Restart";
+
+    private static final String AI_PLAYS = "AI plays";
+    private static final String I_PLAY = "I play";
+
+//    private double windowWidth;
+    private double windowHeight;
+
+//    private double gameWidth;
+    private double gameHeight;
+
     @Override
     public void init() throws Exception {
         super.init();
@@ -246,48 +268,104 @@ public class Tetris extends Application {
         System.out.println(width + ", " + height);
 
         windowHeight = height*2/3;
-        windowWidth = windowHeight * (COL / (double)ROW) + windowHeight/ROW*4;
+//        windowWidth = windowHeight * (COL / (double)ROW) + windowHeight/ROW*4;
 
-        gameHeight = windowHeight * (1 - 2*GAP_AROUND_PROPORTION);
-        gameWidth = gameHeight * (COL / (double)ROW);
+        gameHeight = windowHeight * (1 - 2*WINDOW_PADDING_PROPORTION);
+        double gameWidth = gameHeight * (COL / (double)ROW);
 
         gameContainer = new Container(gameWidth, gameHeight, COL, ROW);
+
+        double len = gameContainer.blockSideLen*Block.SIDE_LEN + gameContainer.gapBetweenBlocks*(Block.SIDE_LEN-1);
+        nextBlockContainer = new Container(len, len, Block.SIDE_LEN, Block.SIDE_LEN);
 
         ai = new ElTetris(gameContainer);
     }
 
+    private Text scoreLabel;
+    private Text HiScoreLabel;
+    private Text levelLabel;
+    private Text speedLabel;
+
     @Override
     public void start(Stage primaryStage) {
         primaryStage.setTitle(TITLE);
+        primaryStage.getIcons().add(new Image("file:src/main/resources/icon.png"));
+
+        primaryStage.setResizable(false);
 
         VBox infoPanel = new VBox();
-        infoPanel.getChildren().add(new Label("Score"));
-        infoPanel.getChildren().add(new Label("200"));
-        infoPanel.getChildren().add(new Label("Next"));
-        infoPanel.getChildren().add(new Label("Level"));
-        infoPanel.getChildren().add(new Label("3"));
-        infoPanel.getChildren().add(new Label("Speed"));
+        infoPanel.setAlignment(Pos.TOP_RIGHT);
 
-        Button btn = new Button(AI_PLAYS);
-        btn.setOnMouseClicked(mouseEvent -> {
+        infoPanel.getChildren().add(new Label("Score"));
+        scoreLabel = new Text(String.valueOf(currScore));
+        scoreLabel.setStyle("-fx-font-weight: bold");
+        infoPanel.getChildren().add(scoreLabel);
+
+        infoPanel.getChildren().add(new Text()); // empty text to separate
+
+        infoPanel.getChildren().add(new Label("Hi-Score"));
+        HiScoreLabel = new Text(String.valueOf(-1));
+        HiScoreLabel.setStyle("-fx-font-weight: bold");
+        infoPanel.getChildren().add(HiScoreLabel);
+
+        infoPanel.getChildren().add(new Text()); // empty text to separate
+
+        infoPanel.getChildren().add(new Label("Next"));
+        infoPanel.getChildren().add(nextBlockContainer);
+
+        infoPanel.getChildren().add(new Text()); // empty text to separate
+
+        infoPanel.getChildren().add(new Label("Level"));
+        levelLabel = new Text(String.valueOf(currLevel));
+        levelLabel.setStyle("-fx-font-weight: bold");
+        infoPanel.getChildren().add(levelLabel);
+
+        infoPanel.getChildren().add(new Text()); // empty text to separate
+
+        infoPanel.getChildren().add(new Label("Speed"));
+        speedLabel = new Text("unknown");  // todo
+        speedLabel.setStyle("-fx-font-weight: bold");
+        infoPanel.getChildren().add(speedLabel);
+
+        infoPanel.getChildren().add(new Text()); // empty text to separate
+
+        Button pauseBtn = new Button(PAUSE);
+        pauseBtn.setOnMouseClicked(mouseEvent -> {
             if (mouseEvent.getButton() == MouseButton.PRIMARY) { // 鼠标左键
-                if (aiPlaying) {
-                    aiPlaying = false;
-                    btn.setText(AI_PLAYS);
+                if (isInPause) {
+                    isInPause = false;
+                    pauseBtn.setText(PAUSE);
                 } else {
-                    aiPlaying = true;
-                    btn.setText(I_PLAY);
+                    isInPause = true;
+                    pauseBtn.setText(START);
                 }
             }
         });
-        btn.setFocusTraversable(false);
-        infoPanel.getChildren().add(btn);
+        pauseBtn.setFocusTraversable(false);
+        infoPanel.getChildren().add(pauseBtn);
+
+        infoPanel.getChildren().add(new Text()); // empty text to separate
+
+        Button aiBtn = new Button(AI_PLAYS);
+        aiBtn.setOnMouseClicked(mouseEvent -> {
+            if (mouseEvent.getButton() == MouseButton.PRIMARY) { // 鼠标左键
+                if (aiPlaying) {
+                    aiPlaying = false;
+                    aiBtn.setText(AI_PLAYS);
+                } else {
+                    aiPlaying = true;
+                    aiBtn.setText(I_PLAY);
+                }
+            }
+        });
+        aiBtn.setFocusTraversable(false);
+        infoPanel.getChildren().add(aiBtn);
 
         HBox hBox = new HBox();
         hBox.setBackground(new Background(new BackgroundFill(Color.web(BACKGROUND_COLOR),null,null)));
-        double padding = GAP_AROUND_PROPORTION * windowWidth;
+        double padding = WINDOW_PADDING_PROPORTION * windowHeight;
         hBox.setPadding(new Insets(padding));
-        hBox.setSpacing(4);
+        hBox.setSpacing(WINDOW_SPACING_PROPORTION * windowHeight);
         hBox.getChildren().add(gameContainer);
         Line line = new Line(0,0,0, gameHeight);
         hBox.getChildren().add(line);
@@ -310,7 +388,7 @@ public class Tetris extends Application {
 //            System.out.println(keyEvent.toString()); ////////////////////////////////
         });
 
-        primaryStage.setScene(new Scene(hBox, windowWidth, windowHeight));
+        primaryStage.setScene(new Scene(hBox, -1, windowHeight));
         primaryStage.show();
 
         gameContainer.draw();
@@ -350,6 +428,8 @@ public class Tetris extends Application {
 //                nextBlockPanel.resetPanel();
 //                nextBlockPanel.drawPanel();
         }).start();
+
+        System.out.println("Game Over");
     }
 
     @Override
