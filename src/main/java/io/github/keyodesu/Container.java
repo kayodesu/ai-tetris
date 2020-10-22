@@ -23,9 +23,6 @@ public class Container extends Canvas {
      */
     private static final double GAP_INNER_BLOCK_PROPORTION = 0.2;
 
-//    private static final int ROW = 20;   // 行数
-//    private static final int COL = 10;   // 列数
-
     private GraphicsContext gc;
 
     // 画布中每个小方块的状态
@@ -35,14 +32,11 @@ public class Container extends Canvas {
         SOLIDIFY   // 已经固定存在的小方块
     }
 
-//    private double width;
-//    private double height;
-
     public double blockSideLen;
     public double gapBetweenBlocks;
     private double gapInnerBlock;
 
-    // 画布状态表示
+    // 画布状态表示, 零点在左上角
     private CellStat[][] statMatrix;
     private int columnsCount, rowsCount;
 
@@ -61,13 +55,10 @@ public class Container extends Canvas {
         this.rowsCount = rowsCount;
         statMatrix = new CellStat[columnsCount][rowsCount];
 
-//        this.width = width;
-//        this.height = height;
-
         // blockSideLen*COL + GAP_BETWEEN_BLOCKS_PROPORTION*blockSideLen*(COL-1) = width
         var len0 = width / (columnsCount + GAP_BETWEEN_BLOCKS_PROPORTION*(columnsCount-1));
         var len1 = height / (rowsCount + GAP_BETWEEN_BLOCKS_PROPORTION*(rowsCount-1));
-//        System.out.println("xx, yy " + xx + ", " + yy);
+
         blockSideLen = Math.min(len0, len1);
         gapBetweenBlocks = blockSideLen * GAP_BETWEEN_BLOCKS_PROPORTION;
         gapInnerBlock = blockSideLen * GAP_INNER_BLOCK_PROPORTION;
@@ -252,7 +243,7 @@ public class Container extends Canvas {
         for(int x = 0; x < Block.SIDE_LEN; x++) {
             for(int y = 0; y < Block.SIDE_LEN; y++) {
                 // 上方屏幕外图形的不合并
-                if(blockTop + y > 0 && danglingBlock.getData()[x][y])
+                if(danglingBlock.getData()[x][y] && blockTop + y >= 0)
                     statMatrix[blockLeft + x][blockTop + y] = CellStat.MOVING;
             }
         }

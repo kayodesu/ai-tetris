@@ -23,6 +23,7 @@ import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
+import java.util.Arrays;
 import java.util.ResourceBundle;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -97,6 +98,7 @@ public class Tetris extends Application {
         private static final int BEGIN_Y = -Block.SIDE_LEN;
 
         private Block nextBlock;
+        public int[] clearedRowsRecord = new int[5];
 
         /**
          * 触底后的处理
@@ -105,6 +107,7 @@ public class Tetris extends Application {
             int eliminatedLinesCount = gameContainer.merger();
             if(eliminatedLinesCount > 0) {
                 System.out.println("eliminated " + eliminatedLinesCount + " row(s)");
+                clearedRowsRecord[eliminatedLinesCount]++;
 
                 if (eliminatedLinesCount == 1)
                     currScore += 10;   //  一次消除一层： 获得10积分
@@ -150,6 +153,13 @@ public class Tetris extends Application {
                     scoreLabel.setText(String.valueOf(currScore));
                     levelLabel.setText(String.valueOf(currLevel));
                     speedLabel.setText("unknown"); // todo
+                    String s = String.format("Cleared Rows:\n1: %d\n2: %d\n3: %d\n4: %d\nTotal: %d",
+                            clearedRowsRecord[1],
+                            clearedRowsRecord[2],
+                            clearedRowsRecord[3],
+                            clearedRowsRecord[4],
+                            Arrays.stream(clearedRowsRecord).sum());
+                    clearedRowsText.setText(s);
                 });
             }
 
@@ -285,6 +295,7 @@ public class Tetris extends Application {
     private Text HiScoreLabel;
     private Text levelLabel;
     private Text speedLabel;
+    private Text clearedRowsText;
 
     @Override
     public void start(Stage primaryStage) {
@@ -344,7 +355,7 @@ public class Tetris extends Application {
         pauseBtn.setFocusTraversable(false);
         infoPanel.getChildren().add(pauseBtn);
 
-        infoPanel.getChildren().add(new Text()); // empty text to separate
+        infoPanel.getChildren().add(new Text()); // empty text for separate
 
         Button aiBtn = new Button(AI_PLAYS);
         aiBtn.setOnMouseClicked(mouseEvent -> {
@@ -352,14 +363,24 @@ public class Tetris extends Application {
                 if (aiPlaying) {
                     aiPlaying = false;
                     aiBtn.setText(AI_PLAYS);
+                    pauseBtn.setDisable(false);
                 } else {
                     aiPlaying = true;
                     aiBtn.setText(I_PLAY);
+                    pauseBtn.setDisable(true);
                 }
             }
         });
         aiBtn.setFocusTraversable(false);
         infoPanel.getChildren().add(aiBtn);
+
+        infoPanel.getChildren().add(new Text()); // empty text for separate
+
+        clearedRowsText = new Text();
+        VBox wrapper = new VBox();
+        wrapper.setAlignment(Pos.TOP_LEFT);
+        wrapper.getChildren().add(clearedRowsText);
+        infoPanel.getChildren().add(wrapper);
 
         HBox hBox = new HBox();
         hBox.setBackground(new Background(new BackgroundFill(Color.web(BACKGROUND_COLOR),null,null)));

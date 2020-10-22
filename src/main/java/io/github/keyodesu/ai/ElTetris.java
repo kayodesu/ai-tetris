@@ -30,10 +30,15 @@ public class ElTetris implements AI {
      * 1. Landing Height: The height where the piece is put
      * (= the height of the column + (the height of the piece / 2))
      */
-    private static int landingHeight(Container container) {
-        int h = container.getRowsCount() - container.blockTop + container.getDanglingBlock().getHeight()/2;
-        System.out.print("\n--- " + h + ", "); ////////////////////////////////////////
-        return h;
+    private static double landingHeight(Container container) {
+        int blockHeight = container.getDanglingBlock().getHeight();
+        int blockTopSpace = Block.SIDE_LEN - blockHeight;
+
+        int columnHeight = container.getRowsCount() - (container.blockTop + blockTopSpace);
+        if (columnHeight > container.getRowsCount())
+            columnHeight = 10000; // todo
+
+        return columnHeight + blockHeight/2.0;
     }
 
     /**
@@ -55,7 +60,6 @@ public class ElTetris implements AI {
             }
         }
 
-        System.out.print(num + ", "); ////////////////////////////////////////
         return num;
     }
 
@@ -84,7 +88,6 @@ public class ElTetris implements AI {
                 transitions++;
         }
 
-        System.out.print(transitions + ", "); ////////////////////////////////////////
         return transitions;
     }
 
@@ -92,13 +95,13 @@ public class ElTetris implements AI {
      * 4. Column Transitions: The total number of column transitions.
      * A column transition occurs when an empty cell is adjacent to a filled cell
      * on the same column and vice versa.
-     * 上下边界视为filled cell
+     * 上边界视为empty cell，下边界视为filled cell
      */
     private static int columnTransitions(Container.CellStat[][] statMatrix) {
         int transitions = 0;
 
         for (var column : statMatrix) {
-            var lastStat = SOLIDIFY;
+            var lastStat = EMPTY;
 
             for (var stat : column) {
                 if (stat != lastStat) {
@@ -110,14 +113,12 @@ public class ElTetris implements AI {
                 transitions++;
         }
 
-        System.out.print(transitions + ", "); ////////////////////////////////////////
         return transitions;
     }
 
     /**
      * 5. Number of Holes: A hole is an empty cell
      * that has at least one filled cell above it in the same column.
-     * 一个 empty cell 的紧挨着的上方是一个 filled cell，此 empty cell 就是一个 hole
      */
     private static int numberOfHoles(Container.CellStat[][] statMatrix) {
         int num = 0; // number of holes
@@ -129,15 +130,12 @@ public class ElTetris implements AI {
                     filledCellAbove = true;
                 } else if (filledCellAbove) {
                     num++;
-                    filledCellAbove = false;
                 }
             }
         }
 
-        System.out.print(num + ", "); ////////////////////////////////////////
         return num;
     }
-
 
     /**
      * 6. Well Sums: A well is a sequence of empty cells above the top piece in a column
@@ -156,38 +154,22 @@ public class ElTetris implements AI {
             boolean inWell = false;
 
             for (int y = 0; y < statMatrix[x].length; y++) {
+                if (statMatrix[x][y] != EMPTY)
+                    break; // 触底了
                 if (!inWell) {
-                    if ((statMatrix[x][y] == EMPTY)
-                            && ((x-1 < 0) || (statMatrix[x-1][y] != EMPTY))
+                    if (((x-1 < 0) || (statMatrix[x-1][y] != EMPTY))
                             && ((x+1 >= statMatrix.length) || (statMatrix[x+1][y] != EMPTY))) {
                         inWell = true;
                         deep = 1;
                     }
                 } else { // in well
-                    if (statMatrix[x][y] == EMPTY)
-                        deep++;
-                    else
-                        break; // 触底了
+                    deep++;
                 }
             }
 
             sums += IntStream.rangeClosed(0, deep).sum();
         }
 
-//        for (int x = 0; x < statMatrix.length; x++) {
-//            for (int y = 0; y < statMatrix[x].length; y++) {
-//                if ((statMatrix[x][y] == EMPTY)
-//                        && ((x-1 < 0) || (statMatrix[x-1][y] != EMPTY))
-//                        && ((x+1 >= statMatrix.length) || (statMatrix[x+1][y] != EMPTY))) {
-//                    num++;
-//                } else if (num > 0) {
-//                    sums += IntStream.rangeClosed(0, num).sum();
-//                    num = 0;
-//                }
-//            }
-//        }
-
-        System.out.println(sums + " ---"); ////////////////////////////////////////
         return sums;
     }
 
@@ -210,28 +192,19 @@ public class ElTetris implements AI {
         int blockStat = 1;
 
         for (int i = block.getStatsCount(); i > 0; i--) {
-            System.out.print(block.getClass().getSimpleName() + ", " + block.getStat() + ": "); ///////////////////////////////////////////////////////////////
             for (int x = -Block.SIDE_LEN + 1; x < container.getColumnsCount(); x++) {
                 Container.ConflictType type = container.setDanglingBlock(x, -Block.SIDE_LEN, block);
                 if (type != NONE_CONFLICT) {
-                    System.out.print("[" + x + "]" + 100 + ", "); ///////////////////////////////////////////////////////////////
                     continue;
                 }
 
                 while (container.tryMoveDown());
-
-//                if (container.blockTop <= 0) {
-//                    System.out.print("(" + x + ")" + container.blockTop + ", "); ///////////////////////////////////////////////////////////////
-//                    continue;
-//                }
 
                 // block 已经悬停在底部了
 
                 container.pasteDanglingBlock();
                 double score = evaluateScore(container);
                 container.unPasteDanglingBlock();
-
-                System.out.print("[" + x + "," + container.blockTop + "]" + score + ", "); ///////////////////////////////////////////////////////////////
 
                 if (score > maxScore) {
                     maxScore = score;
@@ -240,13 +213,11 @@ public class ElTetris implements AI {
                 }
             }
 
-            System.out.println(); ///////////////////////////////////////////////////////////////
             block.switchToNextStat();
         }
 
         assert blockStat > 0;
         block.switchToStat(blockStat);
-//         System.out.println("col: " + col); ////////////////////////////////////////////////////////////////////////////
         container.setDanglingBlock(col, -Block.SIDE_LEN, block);
     }
 

@@ -106,4 +106,23 @@ public class ElTetrisTest {
         printStats(stats1);
         System.out.println(count);
     }
+
+//    private int getXXHeight(Container.CellStat[][] stats) {
+//        for (int y = 0; y < 20; y++) {
+//            for (int x = 0; x < 10; x++) {
+//                if (stats[x][y] != Container.CellStat.EMPTY) {
+//                    return 20 - y;
+//                }
+//            }
+//        }
+//        return 0;
+//    }
+//
+//    @Test
+//    void testContainerHeight() {
+//        printStats(stats0);
+//        System.out.println(getXXHeight(stats0));
+//        printStats(stats1);
+//        System.out.println(getXXHeight(stats1));
+//    }
 }
