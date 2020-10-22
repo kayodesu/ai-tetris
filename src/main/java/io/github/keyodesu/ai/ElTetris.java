@@ -3,6 +3,7 @@ package io.github.keyodesu.ai;
 import io.github.keyodesu.Container;
 import io.github.keyodesu.block.Block;
 
+import java.util.function.Function;
 import java.util.stream.IntStream;
 
 import static io.github.keyodesu.Container.CellStat.*;
@@ -44,15 +45,15 @@ public class ElTetris implements AI {
     /**
      * 2. Rows eliminated: The number of rows eliminated.
      */
-    private static int rowsEliminated(Container.CellStat[][] statMatrix) {
+    private static int rowsEliminated(Container.Cell[][] cellMatrix) {
         int num = 0;
 
-        int col = statMatrix.length;
-        int row = statMatrix[0].length;
+        int col = cellMatrix.length;
+        int row = cellMatrix[0].length;
         for (int y = 0; y < row; y++) {
             int x;
             for (x = 0; x < col; x++) {
-                if (statMatrix[x][y] == EMPTY)
+                if (cellMatrix[x][y].stat == EMPTY)
                     break;
             }
             if (x == col) { // find a full row
@@ -69,22 +70,22 @@ public class ElTetris implements AI {
      * on the same row and vice versa.
      * 左右边界视为filled cell
      */
-    private static int rowTransitions(Container.CellStat[][] statMatrix) {
+    private static int rowTransitions(Container.Cell[][] cellMatrix) {
         int transitions = 0;
 
-        int col = statMatrix.length;
-        int row = statMatrix[0].length;
+        int col = cellMatrix.length;
+        int row = cellMatrix[0].length;
 
         for (int y = 0; y < row; y++) {
             var lastStat = SOLIDIFY;
 
-            for (var column : statMatrix) {
-                if (column[y] != lastStat) {
-                    lastStat = column[y];
+            for (var column : cellMatrix) {
+                if (column[y].stat != lastStat) {
+                    lastStat = column[y].stat;
                     transitions++;
                 }
             }
-            if (statMatrix[col-1][y] == EMPTY)
+            if (cellMatrix[col-1][y].stat == EMPTY)
                 transitions++;
         }
 
@@ -97,19 +98,19 @@ public class ElTetris implements AI {
      * on the same column and vice versa.
      * 上边界视为empty cell，下边界视为filled cell
      */
-    private static int columnTransitions(Container.CellStat[][] statMatrix) {
+    private static int columnTransitions(Container.Cell[][] cellMatrix) {
         int transitions = 0;
 
-        for (var column : statMatrix) {
+        for (var column : cellMatrix) {
             var lastStat = EMPTY;
 
-            for (var stat : column) {
-                if (stat != lastStat) {
+            for (var cell : column) {
+                if (cell.stat != lastStat) {
                     transitions++;
-                    lastStat = stat;
+                    lastStat = cell.stat;
                 }
             }
-            if (column[column.length-1] == EMPTY)
+            if (column[column.length-1].stat == EMPTY)
                 transitions++;
         }
 
@@ -120,13 +121,13 @@ public class ElTetris implements AI {
      * 5. Number of Holes: A hole is an empty cell
      * that has at least one filled cell above it in the same column.
      */
-    private static int numberOfHoles(Container.CellStat[][] statMatrix) {
+    private static int numberOfHoles(Container.Cell[][] cellMatrix) {
         int num = 0; // number of holes
 
-        for (var column : statMatrix) {
+        for (var column : cellMatrix) {
             boolean filledCellAbove = false;
-            for (var stat : column) {
-                if (stat != EMPTY) {
+            for (var cell : column) {
+                if (cell.stat != EMPTY) {
                     filledCellAbove = true;
                 } else if (filledCellAbove) {
                     num++;
@@ -146,19 +147,19 @@ public class ElTetris implements AI {
      *    The well sums. For a well of length n, we define the well sums as
      *    1 + 2 + 3 + ... + n. This gives more significance to deeper holes.
      */
-    private static int wellSums(Container.CellStat[][] statMatrix) {
+    private static int wellSums(Container.Cell[][] cellMatrix) {
         int sums = 0;
 
-        for (int x = 0; x < statMatrix.length; x++) {
+        for (int x = 0; x < cellMatrix.length; x++) {
             int deep = 0;
             boolean inWell = false;
 
-            for (int y = 0; y < statMatrix[x].length; y++) {
-                if (statMatrix[x][y] != EMPTY)
+            for (int y = 0; y < cellMatrix[x].length; y++) {
+                if (cellMatrix[x][y].stat != EMPTY)
                     break; // 触底了
                 if (!inWell) {
-                    if (((x-1 < 0) || (statMatrix[x-1][y] != EMPTY))
-                            && ((x+1 >= statMatrix.length) || (statMatrix[x+1][y] != EMPTY))) {
+                    if (((x-1 < 0) || (cellMatrix[x-1][y].stat != EMPTY))
+                            && ((x+1 >= cellMatrix.length) || (cellMatrix[x+1][y].stat != EMPTY))) {
                         inWell = true;
                         deep = 1;
                     }
@@ -174,13 +175,13 @@ public class ElTetris implements AI {
     }
 
     private static double evaluateScore(Container container) {
-        Container.CellStat[][] statMatrix = container.getStatMatrix();
+        Container.Cell[][] cellMatrix = container.getCellMatrix();
         return landingHeight(container) * LANDING_HEIGHT_WEIGHT
-                + rowsEliminated(statMatrix)*ROWS_ELIMINATED_WEIGHT
-                + rowTransitions(statMatrix)*ROW_TRANSITIONS_WEIGHT
-                + columnTransitions(statMatrix)*COLUMN_TRANSITIONS_WEIGHT
-                + numberOfHoles(statMatrix)*NUMBER_OF_HOLES_WEIGHT
-                + wellSums(statMatrix)*WELL_SUMS_WEIGHT;
+                + rowsEliminated(cellMatrix)*ROWS_ELIMINATED_WEIGHT
+                + rowTransitions(cellMatrix)*ROW_TRANSITIONS_WEIGHT
+                + columnTransitions(cellMatrix)*COLUMN_TRANSITIONS_WEIGHT
+                + numberOfHoles(cellMatrix)*NUMBER_OF_HOLES_WEIGHT
+                + wellSums(cellMatrix)*WELL_SUMS_WEIGHT;
     }
 
     public void calBestColAndStat() {
@@ -220,6 +221,17 @@ public class ElTetris implements AI {
         block.switchToStat(blockStat);
         container.setDanglingBlock(col, -Block.SIDE_LEN, block);
     }
+
+//    public void fallOne() {
+//        calBestColAndStat();
+//        while (container.moveDown()) {
+//            try {
+//                Thread.sleep(10);
+//            } catch (InterruptedException e) {
+//                e.printStackTrace();
+//            }
+//        }
+//    }
 
     public void stop() {
 

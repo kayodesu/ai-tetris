@@ -21,10 +21,8 @@ import javafx.scene.shape.Line;
 import javafx.scene.text.Text;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
-import javafx.stage.StageStyle;
 
 import java.util.Arrays;
-import java.util.ResourceBundle;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import static io.github.keyodesu.Tetris.Action.*;
@@ -248,11 +246,6 @@ public class Tetris extends Application {
     private static final int ROW = 20;   // 行数
     private static final int COL = 10;   // 列数
 
-    // padding 相当于 窗口高度的比例
-    private static final double WINDOW_PADDING_PROPORTION = 0.006;   // 1%
-    // spacing 相当于 窗口高度的比例
-    private static final double WINDOW_SPACING_PROPORTION = 0.006;   // 1%
-
     private static final String BACKGROUND_COLOR = "0xa7b7b1";
 
     private static final String PAUSE = "Pause";
@@ -262,11 +255,12 @@ public class Tetris extends Application {
     private static final String AI_PLAYS = "AI plays";
     private static final String I_PLAY = "I play";
 
-//    private double windowWidth;
-    private double windowHeight;
+    private int exactGameHeight;
+    // padding 相当于Game窗口高度的比例
+    private static final double WINDOW_PADDING_PROPORTION = 0.006;   // 1%
 
-//    private double gameWidth;
-    private double gameHeight;
+    // 两个小方块之间的间隙
+    private static final int GAP_BETWEEN_CELLS = 1;
 
     @Override
     public void init() throws Exception {
@@ -277,16 +271,24 @@ public class Tetris extends Application {
         double height = screenRectangle.getHeight();
         System.out.println(width + ", " + height);
 
-        windowHeight = height*2/3;
-//        windowWidth = windowHeight * (COL / (double)ROW) + windowHeight/ROW*4;
+        double windowHeight = height*2/3;
 
-        gameHeight = windowHeight * (1 - 2*WINDOW_PADDING_PROPORTION);
+        double gameHeight = windowHeight * (1 - 2*WINDOW_PADDING_PROPORTION);
         double gameWidth = gameHeight * (COL / (double)ROW);
 
-        gameContainer = new Container(gameWidth, gameHeight, COL, ROW);
+        // cellSideLen*columnsCount + GAP_BETWEEN_CELLS*(columnsCount-1) = width
+        var g = GAP_BETWEEN_CELLS;
+        int len0 = (int) ((gameWidth-g*(COL-1)) / COL);
+        int len1 = (int) ((gameHeight-g*(ROW-1)) / ROW);
+        int cellSideLen = Math.min(len0, len1);
 
-        double len = gameContainer.blockSideLen*Block.SIDE_LEN + gameContainer.gapBetweenBlocks*(Block.SIDE_LEN-1);
-        nextBlockContainer = new Container(len, len, Block.SIDE_LEN, Block.SIDE_LEN);
+        int exactGameWidth = cellSideLen*COL + g*(COL-1);;
+        exactGameHeight = cellSideLen*ROW + g*(ROW-1);
+
+        gameContainer = new Container(exactGameWidth, exactGameHeight, cellSideLen, g, COL, ROW);
+
+        int len = cellSideLen*Block.SIDE_LEN + g*(Block.SIDE_LEN-1);
+        nextBlockContainer = new Container(len, len, cellSideLen, g, Block.SIDE_LEN, Block.SIDE_LEN);
 
         ai = new ElTetris(gameContainer);
     }
@@ -384,12 +386,20 @@ public class Tetris extends Application {
 
         HBox hBox = new HBox();
         hBox.setBackground(new Background(new BackgroundFill(Color.web(BACKGROUND_COLOR),null,null)));
-        double padding = WINDOW_PADDING_PROPORTION * windowHeight;
-        hBox.setPadding(new Insets(padding));
-        hBox.setSpacing(WINDOW_SPACING_PROPORTION * windowHeight);
+        double padding = WINDOW_PADDING_PROPORTION * exactGameHeight;
+        hBox.setPadding(new Insets(0, padding, 0, 0)); // right padding
         hBox.getChildren().add(gameContainer);
-        Line line = new Line(0,0,0, gameHeight);
+
+        Line line = new Line(0,0,0, exactGameHeight);
+        line.setStroke(Color.LIGHTGRAY);
+        line.setStrokeWidth(2);
         hBox.getChildren().add(line);
+
+        Line invisibleLine = new Line(0,0,0, exactGameHeight);
+        invisibleLine.setStroke(Color.web(BACKGROUND_COLOR));
+        invisibleLine.setStrokeWidth(padding);
+        hBox.getChildren().add(invisibleLine);
+
         hBox.getChildren().add(infoPanel);
 
         primaryStage.addEventHandler(KeyEvent.KEY_PRESSED, keyEvent -> {
@@ -406,10 +416,9 @@ public class Tetris extends Application {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-//            System.out.println(keyEvent.toString()); ////////////////////////////////
         });
 
-        primaryStage.setScene(new Scene(hBox, -1, windowHeight));
+        primaryStage.setScene(new Scene(hBox, -1, exactGameHeight));
         primaryStage.show();
 
         gameContainer.draw();
@@ -443,8 +452,7 @@ public class Tetris extends Application {
 
             actionQueue.clear();
 
-//            gameContainer.overPattern();
-//            gameContainer.draw();
+            gameContainer.overPattern();
 
 //                nextBlockPanel.resetPanel();
 //                nextBlockPanel.drawPanel();

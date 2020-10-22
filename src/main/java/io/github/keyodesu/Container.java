@@ -11,18 +11,6 @@ import javafx.scene.paint.Color;
  */
 public class Container extends Canvas {
 
-    /*
-     * 两个小方块之间的间隙占小方块边长的比例
-     * 也就是：小方块之间的间隙 == 小方块边长 * GAP_BETWEEN_BLOCKS_PROPORTION
-     */
-    private static final double GAP_BETWEEN_BLOCKS_PROPORTION = 0.14;
-
-    /*
-     * 小方块内部的间隙占小方块边长的比例
-     * 也就是：小方块内部的间隙 == 小方块边长 * GAP_INNER_BLOCK_PROPORTION
-     */
-    private static final double GAP_INNER_BLOCK_PROPORTION = 0.2;
-
     private GraphicsContext gc;
 
     // 画布中每个小方块的状态
@@ -32,12 +20,16 @@ public class Container extends Canvas {
         SOLIDIFY   // 已经固定存在的小方块
     }
 
-    public double blockSideLen;
-    public double gapBetweenBlocks;
-    private double gapInnerBlock;
+    public int cellSideLen;
+    public int gapBetweenCells;
+
+    public static class Cell {
+        public CellStat stat = CellStat.EMPTY;
+        public Color color = Color.BLACK;
+    }
 
     // 画布状态表示, 零点在左上角
-    private CellStat[][] statMatrix;
+    private Cell[][] cellMatrix;
     private int columnsCount, rowsCount;
 
     public int getColumnsCount() {
@@ -48,34 +40,23 @@ public class Container extends Canvas {
         return rowsCount;
     }
 
-    public Container(double width, double height, int columnsCount, int rowsCount) {
+    public Container(int width, int height, int cellSideLen, int gapBetweenCells, int columnsCount, int rowsCount) {
         super(width, height);
 
+        this.cellSideLen = cellSideLen;
+        this.gapBetweenCells = gapBetweenCells;
         this.columnsCount = columnsCount;
         this.rowsCount = rowsCount;
-        statMatrix = new CellStat[columnsCount][rowsCount];
-
-        // blockSideLen*COL + GAP_BETWEEN_BLOCKS_PROPORTION*blockSideLen*(COL-1) = width
-        var len0 = width / (columnsCount + GAP_BETWEEN_BLOCKS_PROPORTION*(columnsCount-1));
-        var len1 = height / (rowsCount + GAP_BETWEEN_BLOCKS_PROPORTION*(rowsCount-1));
-
-        blockSideLen = Math.min(len0, len1);
-        gapBetweenBlocks = blockSideLen * GAP_BETWEEN_BLOCKS_PROPORTION;
-        gapInnerBlock = blockSideLen * GAP_INNER_BLOCK_PROPORTION;
-
-        System.out.println(width + ", " + height);
-        System.out.println(blockSideLen*columnsCount + GAP_BETWEEN_BLOCKS_PROPORTION*blockSideLen*(columnsCount-1) + ", "
-                + blockSideLen*rowsCount + GAP_BETWEEN_BLOCKS_PROPORTION*blockSideLen*(rowsCount-1));
-
+        cellMatrix = new Cell[columnsCount][rowsCount];
         gc = getGraphicsContext2D();
 
         for(int x = 0; x < columnsCount; x++)
             for(int y = 0; y < rowsCount; y++)
-                statMatrix[x][y] = CellStat.EMPTY;
+                cellMatrix[x][y] = new Cell();
     }
 
-    public CellStat[][] getStatMatrix() {
-        return statMatrix;
+    public Cell[][] getCellMatrix() {
+        return cellMatrix;
     }
 
     private boolean full = false;
@@ -179,10 +160,10 @@ public class Container extends Canvas {
 
         for (int y = rowsCount - 1; y >= 0; y--) {
             for (int x = 0; x < columnsCount; x++) {
-                if (statMatrix[x][y] == CellStat.EMPTY) {
+                if (cellMatrix[x][y].stat == CellStat.EMPTY) {
                     // 发现一未满行，将此行复制的tmp数组的对应位置
                     for (int i = 0, t = 0; i < columnsCount; i++, t++) {
-                        tmp[i][j] = statMatrix[t][y];
+                        tmp[i][j] = cellMatrix[t][y].stat;
                     }
                     j--;
                     notFullLineCount++;
@@ -193,11 +174,10 @@ public class Container extends Canvas {
 
         for (int x = 0; x < columnsCount; x++) {
             for (int y = 0; y < rowsCount; y++) {
-                statMatrix[x][y] = tmp[x][y];
+                cellMatrix[x][y].stat = tmp[x][y];
             }
         }
 
-        //draw();
         return rowsCount - notFullLineCount;
     }
 
@@ -212,7 +192,8 @@ public class Container extends Canvas {
                     if (blockTop + y < 0) {
                         full = true;
                     } else {
-                        statMatrix[blockLeft + x][blockTop + y] = CellStat.SOLIDIFY;
+                        cellMatrix[blockLeft + x][blockTop + y].stat = CellStat.SOLIDIFY;
+                        cellMatrix[blockLeft + x][blockTop + y].color = danglingBlock.color;
                     }
                 }
             }
@@ -226,8 +207,10 @@ public class Container extends Canvas {
 
                 for(int x = 0; x < Block.SIDE_LEN; x++)
                     for(int y = 0; y < removedLinesCount; y++)
-                        if(danglingBlock.getData()[x][y])
-                            statMatrix[blockLeft + x][blockTop + y] = CellStat.SOLIDIFY;
+                        if(danglingBlock.getData()[x][y]) {
+                            cellMatrix[blockLeft + x][blockTop + y].stat = CellStat.SOLIDIFY;
+                            cellMatrix[blockLeft + x][blockTop + y].color = danglingBlock.color;
+                        }
             }
         }
 
@@ -244,7 +227,7 @@ public class Container extends Canvas {
             for(int y = 0; y < Block.SIDE_LEN; y++) {
                 // 上方屏幕外图形的不合并
                 if(danglingBlock.getData()[x][y] && blockTop + y >= 0)
-                    statMatrix[blockLeft + x][blockTop + y] = CellStat.MOVING;
+                    cellMatrix[blockLeft + x][blockTop + y].stat = CellStat.MOVING;
             }
         }
     }
@@ -252,8 +235,8 @@ public class Container extends Canvas {
     public void unPasteDanglingBlock() {
         for(int x = 0; x < columnsCount; x++) {
             for(int y = 0; y < rowsCount; y++) {
-                if(statMatrix[x][y] == CellStat.MOVING)
-                    statMatrix[x][y] = CellStat.EMPTY;
+                if(cellMatrix[x][y].stat == CellStat.MOVING)
+                    cellMatrix[x][y].stat = CellStat.EMPTY;
             }
         }
     }
@@ -290,7 +273,7 @@ public class Container extends Canvas {
                         return ConflictType.OUT_OF_BOTTOM_BOUND;
 
                     // 小方块从顶部刚出来时是可以显示不全的，所以（j<0）不算越界
-                    if(j >= 0 && statMatrix[i][j] != CellStat.EMPTY) {
+                    if(j >= 0 && cellMatrix[i][j].stat != CellStat.EMPTY) {
                         return ConflictType.CONFLICT;
                     }
                 }
@@ -303,110 +286,107 @@ public class Container extends Canvas {
     public void draw() {
         // 将更新界面的工作交给 FX application thread 执行
         Platform.runLater(() -> {
-            double lineWidth = 1;
-            gc.setLineWidth(lineWidth);
+            gc.setFill(Color.BLACK);
 
             for (int x = 0; x < columnsCount; x++) {
                 for (int y = 0; y < rowsCount; y++) {
+                    double x0 = x * cellSideLen + x * gapBetweenCells;
+                    double y0 = y * cellSideLen + y * gapBetweenCells;
+
                     if ((danglingBlock != null)
                             && (blockLeft <= x) && (x < blockLeft + Block.SIDE_LEN)
                             && (blockTop <= y) && (y < blockTop + Block.SIDE_LEN)
                             && (danglingBlock.getData()[x - blockLeft][y - blockTop])) {
-                        gc.setFill(Color.BLACK);
-                        gc.setStroke(Color.BLACK);
+                        gc.setFill(danglingBlock.color);
                     } else {
-                        if (statMatrix[x][y] == CellStat.EMPTY) {
-                            gc.setFill(Color.GRAY);
-                            gc.setStroke(Color.GRAY);
-                        } else if (statMatrix[x][y] == CellStat.SOLIDIFY) {
-                            gc.setFill(Color.BLACK);
-                            gc.setStroke(Color.BLACK);
+                        if (cellMatrix[x][y].stat == CellStat.EMPTY) {
+                            gc.clearRect(x0, y0, cellSideLen, cellSideLen);
+                            continue;
+                        } else if (cellMatrix[x][y].stat == CellStat.SOLIDIFY) {
+                            gc.setFill(cellMatrix[x][y].color);
                         }
                     }
 
-                    double x0 = x * blockSideLen + x * gapBetweenBlocks;
-                    double y0 = y * blockSideLen + y * gapBetweenBlocks;
-                    gc.strokeRect(x0, y0, blockSideLen, blockSideLen);
-                    x0 += gapInnerBlock;
-                    y0 += gapInnerBlock;
-                    gc.fillRect(x0, y0, blockSideLen - 2 * gapInnerBlock, blockSideLen - 2 * gapInnerBlock);
+                    gc.fillRect(x0, y0, cellSideLen, cellSideLen);
                 }
             }
         });
     }
 
-//    /**
-//     * 设置面板显示"over"
-//     */
-//    public void overPattern() {
-//        for (int y = rowsCount - 1; y >= 0; y--) {
-//            for (int x = 0; x < columnsCount; x++) {
-//                statMatrix[x][y] = CellStat.EMPTY;
-//            }
-//        }
-//
-//        // "O"
-//        statMatrix[1][3] = CellStat.SOLIDIFY;
-//        statMatrix[1][4] = CellStat.SOLIDIFY;
-//        statMatrix[1][5] = CellStat.SOLIDIFY;
-//        statMatrix[1][6] = CellStat.SOLIDIFY;
-//        statMatrix[1][7] = CellStat.SOLIDIFY;
-//
-//        statMatrix[2][3] = CellStat.SOLIDIFY;
-//        statMatrix[2][7] = CellStat.SOLIDIFY;
-//
-//        statMatrix[3][3] = CellStat.SOLIDIFY;
-//        statMatrix[3][4] = CellStat.SOLIDIFY;
-//        statMatrix[3][5] = CellStat.SOLIDIFY;
-//        statMatrix[3][6] = CellStat.SOLIDIFY;
-//        statMatrix[3][7] = CellStat.SOLIDIFY;
-//
-//        // "V"
-//        statMatrix[5][3] = CellStat.SOLIDIFY;
-//        statMatrix[5][4] = CellStat.SOLIDIFY;
-//        statMatrix[5][5] = CellStat.SOLIDIFY;
-//        statMatrix[5][6] = CellStat.SOLIDIFY;
-//
-//        statMatrix[6][7] = CellStat.SOLIDIFY;
-//
-//        statMatrix[7][3] = CellStat.SOLIDIFY;
-//        statMatrix[7][4] = CellStat.SOLIDIFY;
-//        statMatrix[7][5] = CellStat.SOLIDIFY;
-//        statMatrix[7][6] = CellStat.SOLIDIFY;
-//
-//        // "E"
-//        statMatrix[1][9] = CellStat.SOLIDIFY;
-//        statMatrix[1][10] = CellStat.SOLIDIFY;
-//        statMatrix[1][11] = CellStat.SOLIDIFY;
-//        statMatrix[1][12] = CellStat.SOLIDIFY;
-//        statMatrix[1][13] = CellStat.SOLIDIFY;
-//
-//        statMatrix[2][9] = CellStat.SOLIDIFY;
-//        statMatrix[3][9] = CellStat.SOLIDIFY;
-//
-//        statMatrix[2][11] = CellStat.SOLIDIFY;
-//        statMatrix[3][11] = CellStat.SOLIDIFY;
-//
-//        statMatrix[2][13] = CellStat.SOLIDIFY;
-//        statMatrix[3][13] = CellStat.SOLIDIFY;
-//
-//        // "R"
-//        statMatrix[5][9] = CellStat.SOLIDIFY;
-//        statMatrix[5][10] = CellStat.SOLIDIFY;
-//        statMatrix[5][11] = CellStat.SOLIDIFY;
-//        statMatrix[5][12] = CellStat.SOLIDIFY;
-//        statMatrix[5][13] = CellStat.SOLIDIFY;
-//
-//        statMatrix[6][9] = CellStat.SOLIDIFY;
-//        statMatrix[7][9] = CellStat.SOLIDIFY;
-//
-//        statMatrix[7][10] = CellStat.SOLIDIFY;
-//        statMatrix[7][11] = CellStat.SOLIDIFY;
-//
-//        statMatrix[6][11] = CellStat.SOLIDIFY;
-//
-//        statMatrix[6][12] = CellStat.SOLIDIFY;
-//        statMatrix[7][13] = CellStat.SOLIDIFY;
-//    }
-    
+    /**
+     * 设置面板显示"over"
+     */
+    public void overPattern() {
+        for (int y = rowsCount - 1; y >= 0; y--) {
+            for (int x = 0; x < columnsCount; x++) {
+                cellMatrix[x][y].stat = CellStat.EMPTY;
+            }
+        }
+
+        // "O"
+        cellMatrix[1][3].stat = CellStat.SOLIDIFY;
+        cellMatrix[1][4].stat = CellStat.SOLIDIFY;
+        cellMatrix[1][5].stat = CellStat.SOLIDIFY;
+        cellMatrix[1][6].stat = CellStat.SOLIDIFY;
+        cellMatrix[1][7].stat = CellStat.SOLIDIFY;
+
+        cellMatrix[2][3].stat = CellStat.SOLIDIFY;
+        cellMatrix[2][7].stat = CellStat.SOLIDIFY;
+
+        cellMatrix[3][3].stat = CellStat.SOLIDIFY;
+        cellMatrix[3][4].stat = CellStat.SOLIDIFY;
+        cellMatrix[3][5].stat = CellStat.SOLIDIFY;
+        cellMatrix[3][6].stat = CellStat.SOLIDIFY;
+        cellMatrix[3][7].stat = CellStat.SOLIDIFY;
+
+        // "V"
+        cellMatrix[5][3].stat = CellStat.SOLIDIFY;
+        cellMatrix[5][4].stat = CellStat.SOLIDIFY;
+        cellMatrix[5][5].stat = CellStat.SOLIDIFY;
+        cellMatrix[5][6].stat = CellStat.SOLIDIFY;
+
+        cellMatrix[6][7].stat = CellStat.SOLIDIFY;
+
+        cellMatrix[7][3].stat = CellStat.SOLIDIFY;
+        cellMatrix[7][4].stat = CellStat.SOLIDIFY;
+        cellMatrix[7][5].stat = CellStat.SOLIDIFY;
+        cellMatrix[7][6].stat = CellStat.SOLIDIFY;
+
+        // "E"
+        cellMatrix[1][9].stat = CellStat.SOLIDIFY;
+        cellMatrix[1][10].stat = CellStat.SOLIDIFY;
+        cellMatrix[1][11].stat = CellStat.SOLIDIFY;
+        cellMatrix[1][12].stat = CellStat.SOLIDIFY;
+        cellMatrix[1][13].stat = CellStat.SOLIDIFY;
+
+        cellMatrix[2][9].stat = CellStat.SOLIDIFY;
+        cellMatrix[3][9].stat = CellStat.SOLIDIFY;
+
+        cellMatrix[2][11].stat = CellStat.SOLIDIFY;
+        cellMatrix[3][11].stat = CellStat.SOLIDIFY;
+
+        cellMatrix[2][13].stat = CellStat.SOLIDIFY;
+        cellMatrix[3][13].stat = CellStat.SOLIDIFY;
+
+        // "R"
+        cellMatrix[5][9].stat = CellStat.SOLIDIFY;
+        cellMatrix[5][10].stat = CellStat.SOLIDIFY;
+        cellMatrix[5][11].stat = CellStat.SOLIDIFY;
+        cellMatrix[5][12].stat = CellStat.SOLIDIFY;
+        cellMatrix[5][13].stat = CellStat.SOLIDIFY;
+
+        cellMatrix[6][9].stat = CellStat.SOLIDIFY;
+        cellMatrix[7][9].stat = CellStat.SOLIDIFY;
+
+        cellMatrix[7][10].stat = CellStat.SOLIDIFY;
+        cellMatrix[7][11].stat = CellStat.SOLIDIFY;
+
+        cellMatrix[6][11].stat = CellStat.SOLIDIFY;
+
+        cellMatrix[6][12].stat = CellStat.SOLIDIFY;
+        cellMatrix[7][13].stat = CellStat.SOLIDIFY;
+
+        draw();
+    }
+
 }

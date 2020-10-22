@@ -1,5 +1,7 @@
 package io.github.keyodesu.block;
 
+import javafx.scene.paint.Color;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
@@ -16,6 +18,12 @@ public abstract class Block {
     protected int stat;
 
     public static final int SIDE_LEN = 4;
+
+    private static final Color[] colors = {
+            Color.BLUE, Color.YELLOW, Color.RED,
+            Color.GREEN, Color.PURPLE
+    };
+    public Color color;
     
     // 第一维表示没个方块最多有4种状态，二三维表示每个方块最大宽高为4
     protected boolean[][][] data = new boolean[4][SIDE_LEN][SIDE_LEN];
@@ -23,6 +31,7 @@ public abstract class Block {
     public Block(int statsCount) {
         this.statsCount = statsCount;
         stat = random.nextInt(statsCount);
+        color = colors[random.nextInt(colors.length)];
     }
     
     public boolean[][] getData() {
