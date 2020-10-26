@@ -1,4 +1,4 @@
-package io.github.keyodesu.block;
+package io.github.kayodesu.block;
 
 import javafx.scene.paint.Color;
 
@@ -20,7 +20,7 @@ public abstract class Block {
     public static final int SIDE_LEN = 4;
 
     private static final Color[] colors = {
-            Color.BLUE, Color.YELLOW, Color.RED,
+            Color.BLUE, Color.DEEPPINK, Color.RED,
             Color.GREEN, Color.PURPLE
     };
     public Color color;

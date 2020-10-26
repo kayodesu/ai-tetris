@@ -1,6 +1,6 @@
-package io.github.keyodesu;
+package io.github.kayodesu;
 
-import io.github.keyodesu.block.Block;
+import io.github.kayodesu.block.Block;
 import javafx.application.Platform;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;

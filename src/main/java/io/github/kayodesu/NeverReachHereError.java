@@ -1,4 +1,4 @@
-package io.github.keyodesu;
+package io.github.kayodesu;
 
 /**
  * @author Yo Ka

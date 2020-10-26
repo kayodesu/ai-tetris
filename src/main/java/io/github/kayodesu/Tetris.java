@@ -1,8 +1,8 @@
-package io.github.keyodesu;
+package io.github.kayodesu;
 
-import io.github.keyodesu.ai.AI;
-import io.github.keyodesu.ai.ElTetris;
-import io.github.keyodesu.block.Block;
+import io.github.kayodesu.ai.AI;
+import io.github.kayodesu.ai.ElTetris;
+import io.github.kayodesu.block.Block;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -25,7 +25,7 @@ import javafx.stage.Stage;
 import java.util.Arrays;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import static io.github.keyodesu.Tetris.Action.*;
+import static io.github.kayodesu.Tetris.Action.*;
 
 /**
  * @author Yo Ka
@@ -241,7 +241,7 @@ public class Tetris extends Application {
         }
     });
 
-    private static final String TITLE = "AI Tetris";
+    private static final String TITLE = "Tetris AI";
 
     private static final int ROW = 20;   // 行数
     private static final int COL = 10;   // 列数
@@ -385,7 +385,7 @@ public class Tetris extends Application {
         infoPanel.getChildren().add(wrapper);
 
         HBox hBox = new HBox();
-        hBox.setBackground(new Background(new BackgroundFill(Color.web(BACKGROUND_COLOR),null,null)));
+//        hBox.setBackground(new Background(new BackgroundFill(Color.web(BACKGROUND_COLOR),null,null)));
         double padding = WINDOW_PADDING_PROPORTION * exactGameHeight;
         hBox.setPadding(new Insets(0, padding, 0, 0)); // right padding
         hBox.getChildren().add(gameContainer);

@@ -1,4 +1,4 @@
-package io.github.keyodesu.ai;
+package io.github.kayodesu.ai;
 
 public interface AI {
 

@@ -1,13 +1,12 @@
-package io.github.keyodesu.ai;
+package io.github.kayodesu.ai;
 
-import io.github.keyodesu.Container;
-import io.github.keyodesu.block.Block;
+import io.github.kayodesu.Container;
+import io.github.kayodesu.block.Block;
 
-import java.util.function.Function;
 import java.util.stream.IntStream;
 
-import static io.github.keyodesu.Container.CellStat.*;
-import static io.github.keyodesu.Container.ConflictType.NONE_CONFLICT;
+import static io.github.kayodesu.Container.CellStat.*;
+import static io.github.kayodesu.Container.ConflictType.NONE_CONFLICT;
 
 /**
  * @author Yo Ka

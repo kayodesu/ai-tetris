@@ -1,4 +1,4 @@
-package io.github.keyodesu.block;
+package io.github.kayodesu.block;
 
 /**
  * S形的小方块
